@@ -3,19 +3,14 @@ FROM python:3.12-slim
 # Install SWI-Prolog and necessary dependencies
 RUN apt-get update && apt-get install -y \
     swi-prolog \
-    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Set SWI-Prolog environment variables
+# Set SWI-Prolog environment variables for Linux x86_64
 ENV SWI_HOME_DIR=/usr/lib/swi-prolog
 ENV LIBSWIPL_PATH=/usr/lib/x86_64-linux-gnu/libswipl.so
 
 # Set work directory
 WORKDIR /app
-
-# Copy requirements and install Python dependencies
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org pyswip python-dotenv openai
 
 # Copy application code
 COPY . .
@@ -24,5 +19,5 @@ COPY . .
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Default command
-CMD ["python", "main.py"]
+# Default command to run the mock LLM version
+CMD ["python", "main_mock_llm.py"]

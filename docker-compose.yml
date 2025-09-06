@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  kb-agents:
+    build:
+      context: .
+      dockerfile: Dockerfile.simple
+    environment:
+      - SWI_HOME_DIR=/usr/lib/swi-prolog
+      - LIBSWIPL_PATH=/usr/lib/x86_64-linux-gnu/libswipl.so
+    stdin_open: true
+    tty: true
+    volumes:
+      - .:/app
+    working_dir: /app
