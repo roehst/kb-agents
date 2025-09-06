@@ -32,8 +32,6 @@ class SalesAgent:
         self.prolog.assertz("action(suggest_car(C)) :- intent(buy), budget(B), car(C, P), P =< B")
         # if intent is sell, tell we only buy cars from users
         self.prolog.assertz("action(tell_we_sell) :- intent(sell)")
-        # 
-        self.prolog.assertz("action(remove_car_from_list(C)) :- retract(car(C, _))")
         
     def add_car(self, model, price):
         self.prolog.assertz(f"car({model}, {price})")
@@ -46,11 +44,21 @@ class SalesAgent:
    
     def update_budget(self, budget):
         self.prolog.retractall("budget(_)")  # Clear previous budget
-        self.prolog.assertz(f"budget({budget})")
+        # Convert budget to integer for proper comparison
+        try:
+            budget_int = int(budget)
+            self.prolog.assertz(f"budget({budget_int})")
+        except ValueError:
+            print(f"Invalid budget: {budget}. Please enter a number.")
+            return False
+        return True
         
     def update_intent(self, intent):
         self.prolog.retractall("intent(_)")  # Clear previous intent
         self.prolog.assertz(f"intent({intent})")
+        
+    def remove_car(self, model):
+        self.prolog.retractall(f"car({model}, _)")
 
 agent = SalesAgent()
 
@@ -58,24 +66,41 @@ agent.add_car("audi", 40000)
 agent.add_car("bmw", 35000)
 agent.add_car("mercedes", 45000)
 
+# Cache to track executed actions and prevent repetition
+executed_actions = set()
+
 while True:
     actions = agent.get_actions()
     if not actions:
         print("No action determined. Exiting.")
         break
-    for action in actions:
+    
+    # Check if all actions have been executed before
+    new_actions = [action for action in actions if action not in executed_actions]
+    if not new_actions:
+        print("All possible actions have been executed. Exiting.")
+        break
+    
+    for action in new_actions:
+        print(f"Executing action: {action}")
+        executed_actions.add(action)
+        
         if action == "ask_budget":
             budget = input("What is your budget? ")
-            agent.update_budget(budget)
+            if not agent.update_budget(budget):
+                continue  # Skip this action if budget update failed
         elif action == "ask_intent":
             intent = input("Are you looking to buy or sell a car? ")
             agent.update_intent(intent)
         elif action.startswith("suggest_car"):
             car_model = action.split("(")[1].strip(")")
             print(f"We suggest you to buy a {car_model}.")
+            # After suggesting a car, we're done with this interaction
+            print("Thank you for using our car recommendation service!")
+            break
         elif action == "tell_we_sell":
             print("We only buy cars from users.")
-        elif action.startswith("remove_car_from_list"):
-            car_model = action.split("(")[1].strip(")")
-            agent.remove_car(car_model)
+            # After telling about selling, we're done
+            print("Thank you for your interest!")
+            break
     print("-----")
