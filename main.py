@@ -85,6 +85,7 @@ def main():
     4. Look at the actions, and call tools as required.
     5. After each tool call, you will receive the result of the call. Add facts as needed.
     6. Some actions will prompt you to ask the user for more information. Do so.
+    7. Do not suggest to the customer actions that are not in the action/1 predicate or engage in conversations outside of the defined actions.
     
     Assert facts as stated in dynamic predicates; do not store random information.
     

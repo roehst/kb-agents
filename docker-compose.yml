@@ -1,0 +1,8 @@
+services:
+  app:
+    build: .
+    container_name: kb-agents
+    volumes:
+      - .:/app
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
