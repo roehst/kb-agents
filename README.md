@@ -2,6 +2,11 @@
 
 This is a proof of concept for agents that can interact with a knowledge base using Prolog.
 
+Prolog has key elements for good, knowledge-based agents and business logic:
+1. It is readable. It reads like business rules. It is so easy to express business rules as actions to be undertaken when certain conditions are met.
+2. It is declarative, and non-developers can read and understand it.
+3. It is based on formal logic, so it is fully explainable. Every query has a proof tree, which can be inspected to understand why a certain action was suggested.
+
 ## Key hypothesis
 
 Can an LLM-powered agent use a Prolog knowledge base to reason about the world and decide what to do next?
@@ -79,3 +84,15 @@ Translating user input to Prolog facts is done by the LLM. It would be unfeasibl
 - Prolog reads well like business rules, specifically because we want an Agent to perform certain actions only when certain conditions are met. The declarative nature completely abstracts away the how, focusing on the what.
 - State is modeled explicitly, constituing a database of facts that the agent can reason about.
 - Prolog queries have proofs, which explain why an action was suggested. This is useful for quality control, debugging and for transparency.
+
+## Future work
+
+- Wrap it in MCP to use in order applications
+- Give it a better interface, even for memory.
+- Adopt Z3 or own FOL + CLP(Z) engine for more powerful reasoning.
+
+## Running it
+
+docker compose up --build app /bin/bash
+
+Then, inside the container:

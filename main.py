@@ -8,7 +8,14 @@ import dotenv
 
 dotenv.load_dotenv()
 
-logging.basicConfig(level=logging.INFO)
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+if not os.path.exists("logs"):
+    os.makedirs("logs")
+    
+if not openai.api_key:
+    raise ValueError("OPENAI_API_KEY environment variable not set.")
+
 logger = logging.getLogger(__name__)
 
 # send both to console and file (kb-agents-TIMESTAMP.log with a timestamp...)
@@ -16,7 +23,7 @@ logger.setLevel(logging.INFO)
 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 file_handler = logging.FileHandler(f"logs/kb-agents-{timestamp}.log")
 file_handler.setLevel(logging.INFO)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+formatter = logging.Formatter("System: %(message)s")
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 console_handler = logging.StreamHandler()
@@ -39,35 +46,56 @@ def main():
         prolog_code = file.read()
 
     @agents.function_tool
-    def assert_fact(fact: str):
+    def assert_fact(fact: str) -> str:
         logger.info(f"Asserting fact: {fact}")
         while fact.endswith("."):
             fact = fact[:-1]
-        prolog.assertz(fact)
+        prolog.assertz(fact) # type: ignore
         return f"Asserted: {fact}"
 
     @agents.function_tool
-    def query(query_str: str):
+    def query(query_str: str) -> str:
         logger.info(f"Querying: {query_str}")
-        ret = list(prolog.query(query_str))
+        ret = list(prolog.query(query_str)) # type: ignore
         logger.info(f"Query result: {ret}")
-        return ret
+        return "\n\n".join(str(item) for item in ret) # type: ignore
 
     @agents.function_tool
-    def listings():
-        logger.info(f"Listing all items.")
-        ret = list(prolog.query("listing."))
+    def listings() -> str:
+        logger.info("Listing all items.")
+        ret = list(prolog.query("listing.")) # type: ignore
         logger.info(f"Listing result: {ret}")
-        return ret
+        return str(ret) # type: ignore
 
     @agents.function_tool
-    def fetch_inventory():
-        logger.info(f"Fetching inventory.")
+    def fetch_inventory() -> str:
+        logger.info("Fetching inventory.")
         return json.dumps(
             [
                 {"make": "Toyota", "model": "Camry", "year": 2020, "price": 24000},
                 {"make": "Honda", "model": "Civic", "year": 2019, "price": 22000},
                 {"make": "Ford", "model": "Mustang", "year": 2021, "price": 26000},
+                # BMW
+                {"make": "BMW", "model": "X3", "year": 2021, "price": 43000},
+                {"make": "BMW", "model": "X5", "year": 2022, "price": 59000},
+                {"make": "BMW", "model": "3 Series", "year": 2020, "price": 41000},
+                {"make": "BMW", "model": "5 Series", "year": 2019, "price": 50000},
+                # Fiat
+                {"make": "Fiat", "model": "500", "year": 2018, "price": 16000},
+                {"make": "Fiat", "model": "Panda", "year": 2019, "price": 14000},
+                {"make": "Fiat", "model": "Tipo", "year": 2020, "price": 18000},
+                # Ferrari
+                {"make": "Ferrari", "model": "488 GTB", "year": 2020, "price": 250000},
+                {"make": "Ferrari", "model": "Portofino", "year": 2021, "price": 215000},
+                {"make": "Ferrari", "model": "Roma", "year": 2021, "price": 220000},
+                # Porsche
+                {"make": "Porsche", "model": "911", "year": 2020, "price": 90000},
+                {"make": "Porsche", "model": "Cayenne", "year": 2019, "price": 70000},
+                {"make": "Porsche", "model": "Macan", "year": 2021, "price": 60000},
+                # Tesla
+                {"make": "Tesla", "model": "Model 3", "year": 2021, "price": 40000},
+                {"make": "Tesla", "model": "Model S", "year": 2020, "price": 80000},
+                {"make": "Tesla", "model": "Model X", "year": 2019, "price": 90000},
             ]
         )
 
@@ -97,7 +125,7 @@ def main():
         name="PrologAgent",
         tools=[assert_fact, query, listings, fetch_inventory],
         instructions=instructions,
-        model="gpt-5-mini",
+        model="gpt-5",
     )
     
     previous_response_id = None
@@ -107,7 +135,7 @@ def main():
         response = agents.Runner.run_sync(
             agent, user_input, previous_response_id=previous_response_id
         )
-        print(f"Agent: {response}")
+        print(f"Agent: {response.final_output_as(str)}")
         previous_response_id = response.last_response_id
 
 
