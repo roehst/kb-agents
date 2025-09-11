@@ -1,7 +1,6 @@
 # Stil a draft; laying down the data structures for a Prolog-like KB and solver
 # Will implement SLD + CLP(Z) using a constraint store.
 
-from abc import abstractmethod
 from dataclasses import dataclass
 
 
@@ -58,59 +57,18 @@ class CompoundTerm:
         return f"{self.functor}({args_str})"
 
 
-@dataclass
-class Clause:
-    head: CompoundTerm
-    body: list[CompoundTerm] | None = None
-
-    def __post_init__(self):
-        assert isinstance(self.head, CompoundTerm)
-        if self.body is not None:
-            assert all(isinstance(term, CompoundTerm) for term in self.body)
-
-    def __str__(self) -> str:
-        if self.body:
-            body_str = ", ".join(str(term) for term in self.body)
-            return f"{str(self.head)} :- {body_str}."
-        else:
-            return f"{str(self.head)}."
-
 
 @dataclass
 class Rule:
-    clauses: list[Clause]
+    head: CompoundTerm
+    body: list[CompoundTerm]
 
     def __post_init__(self):
-        assert all(isinstance(clause, Clause) for clause in self.clauses)
+        assert isinstance(self.head, CompoundTerm)
+        assert all(isinstance(term, CompoundTerm) for term in self.body)
 
-
-@dataclass
-class Fact:
-    functor: str
-    args: list["Atom | CompoundTerm"]
-
-    def __post_init__(self):
-        assert all(
-            isinstance(arg, (Constant, Variable, CompoundTerm)) for arg in self.args
-        )
-
-    def __str__(self) -> str:
-        return f"{self.functor}({', '.join(str(arg) for arg in self.args)})."
-
-
-@dataclass
-class Query:
-    functor: str
-    args: list["Atom | CompoundTerm"]
-
-    def __post_init__(self):
-        assert all(
-            isinstance(arg, (Constant, Variable, CompoundTerm)) for arg in self.args
-        )
-
-    def __str__(self) -> str:
-        return f"?- {self.functor}({', '.join(str(arg) for arg in self.args)})."
-
+Fact = CompoundTerm  # A fact is just a clause with no body
+Query = CompoundTerm  # A query is just a compound term
 
 @dataclass
 class Assertion:
@@ -172,96 +130,116 @@ def solve_query(query: Query, kb: KB) -> list[Subst]:
 
     solutions: list[Subst] = []
 
-    # Try to match the query head against the facts and rules in the KB.
+    # Try to unify with facts
     for fact in kb.facts:
-        # If we match the query against a fact, return the substitution.
-        if query.functor == fact.functor and len(query.args) == len(fact.args):
-            subst: Subst = {}
-            for q_arg, f_arg in zip(query.args, fact.args):
-                if isinstance(q_arg, Variable):
-                    subst[q_arg.name] = f_arg
-                elif isinstance(q_arg, Constant) and isinstance(f_arg, Constant):
-                    if q_arg.value != f_arg.value:
-                        break
-                else:
-                    break
-            else:
-                solutions.append(subst)
+        try:
+            subst = unify(query, fact)
+            solutions.append(subst)
+        except ValueError:
+            continue
 
-    # We have found any ground solutions from facts.
-    # Now, let's try to match against rules.
+    # Try to unify with rule heads and resolve their bodies
     for rule in kb.rules:
-        head = rule.clauses[0].head
-        body = rule.clauses
-        # Try to match the head.
-        if query.functor == head.functor and len(query.args) == len(head.args):
-            subst: Subst = {}
-            for q_arg, h_arg in zip(query.args, head.args):
-                if isinstance(q_arg, Variable):
-                    subst[q_arg.name] = h_arg
-                elif isinstance(q_arg, Constant) and isinstance(h_arg, Constant):
-                    if q_arg.value != h_arg.value:
-                        break
-                else:
-                    break
-            else:
-                # Now we need to solve the body.
-                # For simplicity, we will only handle single-clause bodies here.
-                # We will update the substitution as we go.
-                for clause in body:
-                    # Create a new query from the clause head.
-                    new_query = Query(clause.head.functor, clause.head.args)
-                    # Apply the current substitution to the new query.
-                    new_query.args = [
-                        subst.get(arg.name, arg) if isinstance(arg, Variable) else arg
-                        for arg in new_query.args
-                    ]
-                    # Recursively solve the new query.
-                    sub_solutions = solve_query(new_query, kb)
-                    for sub_sol in sub_solutions:
-                        # Merge substitutions.
-                        merged_subst = subst.copy()
-                        merged_subst.update(sub_sol)
-                        solutions.append(merged_subst)
+        try:
+            subst: Subst = unify(query, rule.head)
+            # Now we need to resolve the body of the rule
+            if resolve_rule_body(rule.body, subst, kb):
+                solutions.append(subst)
+        except ValueError:
+            continue
 
     return solutions
+
+def resolve_rule_body(body: list[CompoundTerm], subst: Subst, kb: KB) -> bool:
+    """
+    Resolve all goals in the rule body with the given substitution.
+    Returns True if all goals can be satisfied.
+    """
+    for goal in body:
+        # Apply current substitution to the goal
+        instantiated_goal = apply_substitution(goal, subst)
+        
+        # Try to solve this goal against the KB
+        goal_solutions = solve_query(instantiated_goal, kb)
+        
+        # If no solutions found for this goal, the rule fails
+        if not goal_solutions:
+            return False
+            
+        # For simplicity, we'll just take the first solution
+        # In a full implementation, we'd need to backtrack through all solutions
+        goal_subst = goal_solutions[0]
+        
+        # Merge the substitutions
+        subst.update(goal_subst)
+    
+    return True
+
+def apply_substitution(term: CompoundTerm, subst: Subst) -> CompoundTerm:
+    """
+    Apply a substitution to a compound term.
+    """
+    new_args: list[Atom | CompoundTerm] = []
+    for arg in term.args:
+        if isinstance(arg, Variable) and arg.name in subst:
+            new_args.append(subst[arg.name])
+        elif isinstance(arg, CompoundTerm):
+            new_args.append(apply_substitution(arg, subst))
+        else:
+            new_args.append(arg)
+    
+    return CompoundTerm(term.functor, new_args)
+
+def unify(query: Query, fact: Fact) -> Subst:
+    if query.functor != fact.functor or len(query.args) != len(fact.args):
+        raise ValueError("No match")
+    
+    subst: Subst = {}
+    for q_arg, f_arg in zip(query.args, fact.args):
+        if isinstance(q_arg, Variable):
+            subst[q_arg.name] = f_arg
+        elif isinstance(q_arg, Constant) and isinstance(f_arg, Constant):
+            if q_arg.value != f_arg.value:
+                raise ValueError("No match")
+        elif isinstance(q_arg, Number) and isinstance(f_arg, Number):
+            if q_arg.value != f_arg.value:
+                raise ValueError("No match")
+        else:
+            raise ValueError("No match")
+    return subst
 
 
 kb = KB(
     facts=[
-        Fact("parent", [Constant("alice"), Constant("bob")]),
-        Fact("parent", [Constant("bob"), Constant("carol")]),
+        CompoundTerm("parent", [Constant("alice"), Constant("bob")]),
+        CompoundTerm("parent", [Constant("bob"), Constant("carol")]),
     ],
     rules=[
         Rule(
-            [
-                Clause(
-                    head=CompoundTerm("grandparent", [Variable("X"), Variable("Y")]),
-                    body=[
-                        CompoundTerm("parent", [Variable("X"), Variable("Z")]),
-                        CompoundTerm("parent", [Variable("Z"), Variable("Y")]),
-                    ],
-                )
-            ]
+            head=CompoundTerm("grandparent", [Variable("X"), Variable("Y")]),
+            body=[
+                CompoundTerm("parent", [Variable("X"), Variable("Z")]),
+                CompoundTerm("parent", [Variable("Z"), Variable("Y")]),
+            ],
         )
     ],
     dynamic_predicates=[],
     comments=["This is a simple family tree KB."],
 )
 
-query = Query("parent", [Constant("alice"), Constant("bob")])
+query = CompoundTerm("parent", [Constant("alice"), Constant("bob")])
 
 solution = solve_query(query, kb)
 
 assert len(solution) == 1
 
-query = Query("parent", [Constant("foo"), Constant("bar")])
+query = CompoundTerm("parent", [Constant("foo"), Constant("bar")])
 
 solution = solve_query(query, kb)
 
 assert len(solution) == 0
 
-query = Query("parent", [Variable("X"), Variable("Y")])
+query = CompoundTerm("parent", [Variable("X"), Variable("Y")])
 
 solution = solve_query(query, kb)
 
@@ -271,7 +249,7 @@ for sol in solution:
     print(sol)
 
 # Composite query
-query = Query("grandparent", [Variable("X"), Variable("Y")])
+query = CompoundTerm("grandparent", [Variable("X"), Variable("Y")])
 
 solution = solve_query(query, kb)
 
