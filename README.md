@@ -93,13 +93,12 @@ Translating user input to Prolog facts is done by the LLM. It would be unfeasibl
 
 ## Running it
 
-docker build -t kb-agents .
+`docker build -t kb-agents .` 
 
 Then, inside the container:
-
-docker run -it --rm -e OPENAI_API_KEY=yourkey kb-agents /bin/bash
+`docker run -it --rm -e OPENAI_API_KEY=yourkey kb-agents /bin/bash`
 
 Then:
-python main.py
+`python main.py`
 
 Then, interact with the agent in the prompt.
