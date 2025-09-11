@@ -46,7 +46,7 @@ type Atom = Constant | Variable | Number
 @dataclass
 class CompoundTerm:
     functor: str
-    args: list[Atom | "CompoundTerm"]
+    args: list["Atom | CompoundTerm"]
 
     def __post_init__(self):
         assert all(
@@ -87,7 +87,7 @@ class Rule:
 @dataclass
 class Fact:
     functor: str
-    args: list[Atom | "CompoundTerm"]
+    args: list["Atom | CompoundTerm"]
 
     def __post_init__(self):
         assert all(
@@ -101,7 +101,7 @@ class Fact:
 @dataclass
 class Query:
     functor: str
-    args: list[Atom | "CompoundTerm"]
+    args: list["Atom | CompoundTerm"]
 
     def __post_init__(self):
         assert all(
@@ -133,79 +133,149 @@ class Retraction:
     def __str__(self) -> str:
         return f"retract({str(self.fact)})"
 
+
 @dataclass
 class DynamicPredicate:
     functor: str
     arity: int
 
     def __post_init__(self):
-        assert isinstance(self.functor, str) and isinstance(self.arity, int) and self.arity >= 0
+        assert (
+            isinstance(self.functor, str)
+            and isinstance(self.arity, int)
+            and self.arity >= 0
+        )
 
     def __str__(self) -> str:
         return f":- dynamic({self.functor}/{self.arity})."
+
 
 @dataclass
 class KB:
     facts: list[Fact]
     rules: list[Rule]
     dynamic_predicates: list[DynamicPredicate]
-    comments: list[str] # Optional comments to include at the top of the KB, good for LLMs
+    comments: list[
+        str
+    ]  # Optional comments to include at the top of the KB, good for LLMs
 
-    def __post_init__(self):
-        assert all(isinstance(fact, Fact) for fact in self.facts)
-        assert all(isinstance(rule, Rule) for rule in self.rules)
-        assert all(isinstance(dp, DynamicPredicate) for dp in self.dynamic_predicates)
-        assert all(isinstance(comment, str) for comment in self.comments)
 
-    def __str__(self) -> str:
-        comments_str = "\n".join(f"% {comment}" for comment in self.comments)
-        dynamic_preds_str = "\n".join(str(dp) for dp in self.dynamic_predicates)
-        facts_str = "\n".join(str(fact) for fact in self.facts)
-        rules_str = "\n".join(str(rule) for rule in self.rules)
-        return f"{comments_str}\n\n{dynamic_preds_str}\n\n{facts_str}\n\n{rules_str}"
-    
-    # A few methods to manipulate the KB
-    def assert_fact(self, fact: Fact) -> None:
-        self.facts.append(fact)
+type Term = Atom | CompoundTerm
+type Subst = dict[str, Term]
 
-    def retract_fact(self, fact: Fact) -> None:
-        self.facts.remove(fact)
-        
-    def add_dynamic_predicate(self, dp: DynamicPredicate) -> None:
-        self.dynamic_predicates.append(dp)
-        
-    def assert_rule(self, rule: Rule) -> None:
-        self.rules.append(rule)
-        
-    # A method to get all functors used in the KB
-    @abstractmethod
-    def get_functors(self) -> set[str]: ...
-    
-    # A method to get all facts and rules with a given functor
-    @abstractmethod
-    def get_by_functor(self, functor: str) -> list[Fact | Rule]: ...
-    
-class Solver:
-    
-    def __init__(self, kb: KB):
-        self.kb = kb
-        
-        
-    @abstractmethod
-    def solve_query(self, query: Query) -> list[dict[str, Atom | CompoundTerm]]:
-        ...
-        
-    # Method: push a new goal onto the stack
-    @abstractmethod
-    def push_goal(self, goal: CompoundTerm) -> None:
-        ...
-        
-    # Method: push a constraint to the constraint store
-    @abstractmethod
-    def push_constraint(self, constraint: CompoundTerm) -> None:
-        ...
 
-    # Method: unify two terms
-    @abstractmethod
-    def unify(self, term1: Atom | CompoundTerm, term2: Atom | CompoundTerm) -> dict[str, Atom | CompoundTerm] | None:
-        ...
+def solve_query(query: Query, kb: KB) -> list[Subst]:
+    """
+    Solve the given query against the knowledge base.
+    Returns a list of dictionaries mapping variable names to their values.
+    """
+
+    solutions: list[Subst] = []
+
+    # Try to match the query head against the facts and rules in the KB.
+    for fact in kb.facts:
+        # If we match the query against a fact, return the substitution.
+        if query.functor == fact.functor and len(query.args) == len(fact.args):
+            subst: Subst = {}
+            for q_arg, f_arg in zip(query.args, fact.args):
+                if isinstance(q_arg, Variable):
+                    subst[q_arg.name] = f_arg
+                elif isinstance(q_arg, Constant) and isinstance(f_arg, Constant):
+                    if q_arg.value != f_arg.value:
+                        break
+                else:
+                    break
+            else:
+                solutions.append(subst)
+
+    # We have found any ground solutions from facts.
+    # Now, let's try to match against rules.
+    for rule in kb.rules:
+        head = rule.clauses[0].head
+        body = rule.clauses
+        # Try to match the head.
+        if query.functor == head.functor and len(query.args) == len(head.args):
+            subst: Subst = {}
+            for q_arg, h_arg in zip(query.args, head.args):
+                if isinstance(q_arg, Variable):
+                    subst[q_arg.name] = h_arg
+                elif isinstance(q_arg, Constant) and isinstance(h_arg, Constant):
+                    if q_arg.value != h_arg.value:
+                        break
+                else:
+                    break
+            else:
+                # Now we need to solve the body.
+                # For simplicity, we will only handle single-clause bodies here.
+                # We will update the substitution as we go.
+                for clause in body:
+                    # Create a new query from the clause head.
+                    new_query = Query(clause.head.functor, clause.head.args)
+                    # Apply the current substitution to the new query.
+                    new_query.args = [
+                        subst.get(arg.name, arg) if isinstance(arg, Variable) else arg
+                        for arg in new_query.args
+                    ]
+                    # Recursively solve the new query.
+                    sub_solutions = solve_query(new_query, kb)
+                    for sub_sol in sub_solutions:
+                        # Merge substitutions.
+                        merged_subst = subst.copy()
+                        merged_subst.update(sub_sol)
+                        solutions.append(merged_subst)
+
+    return solutions
+
+
+kb = KB(
+    facts=[
+        Fact("parent", [Constant("alice"), Constant("bob")]),
+        Fact("parent", [Constant("bob"), Constant("carol")]),
+    ],
+    rules=[
+        Rule(
+            [
+                Clause(
+                    head=CompoundTerm("grandparent", [Variable("X"), Variable("Y")]),
+                    body=[
+                        CompoundTerm("parent", [Variable("X"), Variable("Z")]),
+                        CompoundTerm("parent", [Variable("Z"), Variable("Y")]),
+                    ],
+                )
+            ]
+        )
+    ],
+    dynamic_predicates=[],
+    comments=["This is a simple family tree KB."],
+)
+
+query = Query("parent", [Constant("alice"), Constant("bob")])
+
+solution = solve_query(query, kb)
+
+assert len(solution) == 1
+
+query = Query("parent", [Constant("foo"), Constant("bar")])
+
+solution = solve_query(query, kb)
+
+assert len(solution) == 0
+
+query = Query("parent", [Variable("X"), Variable("Y")])
+
+solution = solve_query(query, kb)
+
+assert len(solution) == 2
+
+for sol in solution:
+    print(sol)
+
+# Composite query
+query = Query("grandparent", [Variable("X"), Variable("Y")])
+
+solution = solve_query(query, kb)
+
+assert len(solution) == 1
+
+for sol in solution:
+    print(sol)
