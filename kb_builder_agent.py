@@ -33,7 +33,7 @@ The KB must show how to diagnose a service in production that starts showing 500
 
 last_experiment = None
 
-for _ in range(5):
+for i in range(5):
     # Ask the LLM to provide an experiment towards a program that achieves the goal.
     instructions = f"""
     You are an expert Prolog programmer. Your task is to help build a Prolog knowledge base.
@@ -76,5 +76,9 @@ for _ in range(5):
     print(experiment.test_query.query)
     print("Expected result:")
     print(experiment.test_query.expected_result)
+    
+    # Save as v_{i}.pl
+    with open(f"v_{i}.pl", "w") as f:
+        f.write(experiment.prolog_source)
 
     last_experiment = experiment
