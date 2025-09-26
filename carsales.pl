@@ -1,6 +1,8 @@
 % The goal is to have a customer schedule a test drive
 % for a car within their budget.
 
+magic(15573).
+
 % intent can be 'buy' or 'sell'
 :- dynamic intent/1.
 % budget is a number representing the customer's budget

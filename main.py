@@ -1,143 +1,375 @@
-import datetime
 import logging
-import json
-import os
-import openai
-import agents
+
+from collections import defaultdict
 import dotenv
+
+from openai import BaseModel
+from pydantic_ai import Agent, RunContext
+from pydantic_ai.messages import ModelMessage
+from dataclasses import dataclass
 
 dotenv.load_dotenv()
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
-if not os.path.exists("logs"):
-    os.makedirs("logs")
-    
-if not openai.api_key:
-    raise ValueError("OPENAI_API_KEY environment variable not set.")
-
-logger = logging.getLogger(__name__)
-
-# send both to console and file (kb-agents-TIMESTAMP.log with a timestamp...)
-logger.setLevel(logging.INFO)
-timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-file_handler = logging.FileHandler(f"logs/kb-agents-{timestamp}.log")
-file_handler.setLevel(logging.INFO)
-formatter = logging.Formatter("System: %(message)s")
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
-
-# Imported here so pyswip can find the SWI Prolog installation
-# after loading the .env file
 from pyswip import Prolog  # noqa: E402
 
+_PROLOG_SOURCE_CODE = "carsales.pl"
 
-def main():
+
+# check if it exists
+def verify_magic_constant(prolog):
+    q = list(prolog.query("magic(X)"))
+    assert q and q[0]["X"] == 15573, "Prolog source code validation failed."
+
+
+try:
+    with open(_PROLOG_SOURCE_CODE, "r") as f:
+        prolog_source_code = f.read()
     prolog = Prolog()
+    prolog.consult(_PROLOG_SOURCE_CODE)
+    # Validate by querying magic(15573).
+    verify_magic_constant(prolog)
+except FileNotFoundError:
+    raise FileNotFoundError(
+        f"Prolog source code file '{_PROLOG_SOURCE_CODE}' not found. Please ensure it exists in the current directory."
+    )
 
-    # Now, load the agent script from agent.pl
-    prolog.consult("agent.pl")
+agent = Agent(
+    model="openai:gpt-4.1",
+)
 
-    with open("agent.pl", "r") as file:
-        prolog_code = file.read()
 
-    @agents.function_tool
-    def assert_fact(fact: str) -> str:
-        logger.info(f"Asserting fact: {fact}")
-        while fact.endswith("."):
-            fact = fact[:-1]
-        prolog.assertz(fact) # type: ignore
-        return f"Asserted: {fact}"
-
-    @agents.function_tool
-    def query(query_str: str) -> str:
-        logger.info(f"Querying: {query_str}")
-        ret = list(prolog.query(query_str)) # type: ignore
-        logger.info(f"Query result: {ret}")
-        return "\n\n".join(str(item) for item in ret) # type: ignore
-
-    @agents.function_tool
-    def listings() -> str:
-        logger.info("Listing all items.")
-        ret = list(prolog.query("listing.")) # type: ignore
-        logger.info(f"Listing result: {ret}")
-        return str(ret) # type: ignore
-
-    @agents.function_tool
-    def fetch_inventory() -> str:
-        logger.info("Fetching inventory.")
-        return json.dumps(
-            [
-                {"make": "Toyota", "model": "Camry", "year": 2020, "price": 24000},
-                {"make": "Honda", "model": "Civic", "year": 2019, "price": 22000},
-                {"make": "Ford", "model": "Mustang", "year": 2021, "price": 26000},
-                # BMW
-                {"make": "BMW", "model": "X3", "year": 2021, "price": 43000},
-                {"make": "BMW", "model": "X5", "year": 2022, "price": 59000},
-                {"make": "BMW", "model": "3 Series", "year": 2020, "price": 41000},
-                {"make": "BMW", "model": "5 Series", "year": 2019, "price": 50000},
-                # Fiat
-                {"make": "Fiat", "model": "500", "year": 2018, "price": 16000},
-                {"make": "Fiat", "model": "Panda", "year": 2019, "price": 14000},
-                {"make": "Fiat", "model": "Tipo", "year": 2020, "price": 18000},
-                # Ferrari
-                {"make": "Ferrari", "model": "488 GTB", "year": 2020, "price": 250000},
-                {"make": "Ferrari", "model": "Portofino", "year": 2021, "price": 215000},
-                {"make": "Ferrari", "model": "Roma", "year": 2021, "price": 220000},
-                # Porsche
-                {"make": "Porsche", "model": "911", "year": 2020, "price": 90000},
-                {"make": "Porsche", "model": "Cayenne", "year": 2019, "price": 70000},
-                {"make": "Porsche", "model": "Macan", "year": 2021, "price": 60000},
-                # Tesla
-                {"make": "Tesla", "model": "Model 3", "year": 2021, "price": 40000},
-                {"make": "Tesla", "model": "Model S", "year": 2020, "price": 80000},
-                {"make": "Tesla", "model": "Model X", "year": 2019, "price": 90000},
-            ]
-        )
-
-    instructions = f"""
-    You are an expert Prolog programmer. Use the tools to interact with the Prolog knowledge base.
+@agent.instructions
+def instructions() -> str:
+    return """
+    You are a car sales agent.
     
-    The program is as follows:
-    {prolog_code}
-
-    Your workflow is as follows:
+    Your behavior is completely driven by the Prolog knowledge base. Your role is to:
     
-    1. Convert the user's request into Prolog facts or queries.
-    2. Use the `assert_fact` tool to add new facts to the knowledge base.
-    3. Use the `query` tool to call the predicate action/1 to get the list of actions.
-    4. Look at the actions, and call tools as required.
-    5. After each tool call, you will receive the result of the call. Add facts as needed.
-    6. Some actions will prompt you to ask the user for more information. Do so.
-    7. Do not suggest to the customer actions that are not in the action/1 predicate or engage in conversations outside of the defined actions.
+    1. Interpretate the customers input and update the Prolog knowledge base accordingly by calling the prolog_assertz/1 and prolog_retract/1 tools.
+    2. Query the Prolog knowledge base to determine the next action, via the action/1 predicate, by calling the prolog_query/1 tool.
+    3. Either translate the action to a tool call (e.g., schedule_test_drive/1) or respond to the customer, possibly asking for a new piece of information.
+    4. Repeat until the Prolog knowledge base indicates the conversation is finished via the action(done) or whenever action(escalate) is the only possible action.
     
-    Assert facts as stated in dynamic predicates; do not store random information.
-    
-    Your domain is:
-    - Car sales and maintenance.
+    The source code of the Prolog knowledge base is:
+    ```
+    {prolog_source_code}
+    ```
     """
 
-    agent = agents.Agent(
-        name="PrologAgent",
-        tools=[assert_fact, query, listings, fetch_inventory],
-        instructions=instructions,
-        model="gpt-5",
+
+@agent.tool
+def prolog_assertz(ctx: RunContext, fact: str) -> str:
+    """
+    Assert a fact into the Prolog knowledge base.
+    Example: prolog_assertz("intent(buy).")
+    """
+    print(f"Asserting fact: {fact}")
+    try:
+        while fact.endswith("."):
+            fact = fact[:-1]
+        prolog.assertz(fact)  # type: ignore
+        return f"Asserted fact: {fact}"
+    except Exception as e:
+        return f"Error asserting fact: {e}"
+
+
+@agent.tool
+def prolog_retract(ctx: RunContext, fact: str) -> str:
+    """
+    Retract a fact from the Prolog knowledge base.
+    Example: prolog_retract("intent(buy).")
+    """
+    try:
+        while fact.endswith("."):
+            fact = fact[:-1]
+        prolog.retract(fact)  # type: ignore
+        return f"Retracted fact: {fact}"
+    except Exception as e:
+        return f"Error retracting fact: {e}"
+
+
+# retractall
+@agent.tool
+def prolog_retractall(ctx: RunContext, fact: str) -> str:
+    """
+    Retract all facts matching the given pattern from the Prolog knowledge base.
+    Example: prolog_retractall("intent(_).")
+    """
+    try:
+        while fact.endswith("."):
+            fact = fact[:-1]
+        prolog.retractall(fact)  # type: ignore
+        return f"Retracted all facts matching: {fact}"
+    except Exception as e:
+        return f"Error retracting facts: {e}"
+
+
+@agent.tool
+def prolog_query(ctx: RunContext, query: str) -> str:
+    """
+    Query the Prolog knowledge base.
+    Example: prolog_query("action(X).")
+    """
+    try:
+        while query.endswith("."):
+            query = query[:-1]
+        q = list(prolog.query(query))  # type: ignore
+        if not q:
+            return "No results."
+        results = []
+        for res in q:
+            res_str = ", ".join(f"{k}={v}" for k, v in res.items())
+            results.append(f"{{{res_str}}}")
+        return "\n".join(results)
+    except Exception as e:
+        return f"Error querying Prolog: {e}"
+
+
+@agent.tool
+def schedule_test_drive(ctx: RunContext, car: str) -> str:
+    """
+    Schedule a test drive for the given car.
+    Example: schedule_test_drive("Toyota Camry")
+    """
+    return f"Test drive scheduled for {car}. Our agent will contact you shortly to confirm the details."
+
+
+@agent.tool
+def escalate_to_human(ctx: RunContext) -> str:
+    """
+    Escalate the conversation to a human agent.
+    """
+    return "The conversation has been escalated to a human agent. They will contact you shortly."
+
+
+@agent.tool
+def end_conversation(ctx: RunContext) -> str:
+    """
+    End the conversation.
+    """
+    return "Thank you for your time. If you have any more questions, feel free to reach out. Goodbye!"
+
+
+class Car(BaseModel):
+    identifier: str
+    make: str
+    model: str
+    price: float
+    color: str
+    year: int
+
+
+@agent.tool
+def fetch_inventory(ctx: RunContext) -> str:
+    """
+    Fetch the current car inventory.
+    """
+    cars = [
+        Car(
+            identifier="toy-cam-1",
+            make="Toyota",
+            model="Camry",
+            price=24000,
+            color="Blue",
+            year=2020,
+        ),
+        Car(
+            identifier="hon-acc-2",
+            make="Honda",
+            model="Accord",
+            price=26000,
+            color="Black",
+            year=2021,
+        ),
+        Car(
+            identifier="for-mus-3",
+            make="Ford",
+            model="Mustang",
+            price=30000,
+            color="Red",
+            year=2022,
+        ),
+        Car(
+            identifier="che-mal-4",
+            make="Chevrolet",
+            model="Malibu",
+            price=22000,
+            color="White",
+            year=2019,
+        ),
+        Car(
+            identifier="nis-alt-5",
+            make="Nissan",
+            model="Altima",
+            price=25000,
+            color="Gray",
+            year=2020,
+        ),
+        Car(
+            identifier="tes-mod3-6",
+            make="Tesla",
+            model="Model 3",
+            price=35000,
+            color="Silver",
+            year=2021,
+        ),
+        Car(
+            identifier="bmw-320i-7",
+            make="BMW",
+            model="320i",
+            price=40000,
+            color="Blue",
+            year=2022,
+        ),
+        Car(
+            identifier="aud-a4-8",
+            make="Audi",
+            model="A4",
+            price=42000,
+            color="Black",
+            year=2021,
+        ),
+        Car(
+            identifier="mer-c300-9",
+            make="Mercedes-Benz",
+            model="C300",
+            price=45000,
+            color="White",
+            year=2022,
+        ),
+        Car(
+            identifier="vol-s60-10",
+            make="Volvo",
+            model="S60",
+            price=38000,
+            color="Red",
+            year=2020,
+        ),
+        # Italian cars
+        Car(
+            identifier="fer-488-11",
+            make="Ferrari",
+            model="488",
+            price=250000,
+            color="Red",
+            year=2020,
+        ),
+        Car(
+            identifier="lam-hur-12",
+            make="Lamborghini",
+            model="Huracan",
+            price=300000,
+            color="Yellow",
+            year=2021,
+        ),
+        Car(
+            identifier="mas-ghibli-13",
+            make="Maserati",
+            model="Ghibli",
+            price=80000,
+            color="Blue",
+            year=2022,
+        ),
+        # Cheap cars
+        Car(
+            identifier="kia-rio-14",
+            make="Kia",
+            model="Rio",
+            price=15000,
+            color="Green",
+            year=2019,
+        ),
+        Car(
+            identifier="hyu-elantra-15",
+            make="Hyundai",
+            model="Elantra",
+            price=16000,
+            color="White",
+            year=2020,
+        ),
+        Car(
+            identifier="for-fiesta-16",
+            make="Ford",
+            model="Fiesta",
+            price=14000,
+            color="Red",
+            year=2018,
+        ),
+        Car(
+            identifier="niss-versa-17",
+            make="Nissan",
+            model="Versa",
+            price=13000,
+            color="Blue",
+            year=2019,
+        ),
+        Car(
+            identifier="che-spark-18",
+            make="Chevrolet",
+            model="Spark",
+            price=12000,
+            color="Yellow",
+            year=2018,
+        ),
+        # Old cars
+        Car(
+            identifier="toy-corolla-19",
+            make="Toyota",
+            model="Corolla",
+            price=10000,
+            color="Silver",
+            year=2015,
+        ),
+        Car(
+            identifier="hon-civic-20",
+            make="Honda",
+            model="Civic",
+            price=11000,
+            color="Black",
+            year=2016,
+        ),
+        # Collectibles
+        Car(
+            identifier="for-mustang-66",
+            make="Ford",
+            model="Mustang",
+            price=55000,
+            color="Red",
+            year=1966,
+        ),
+        Car(
+            identifier="che-corvette-59",
+            make="Chevrolet",
+            model="Corvette",
+            price=60000,
+            color="Blue",
+            year=1959,
+        ),
+    ]
+
+    inventory_str = "\n".join(
+        f"{car.year} {car.color} {car.make} {car.model} - ${car.price}" for car in cars
     )
-    
-    previous_response_id = None
-    
-    for _ in range(5):
-        user_input = input("User: ")
-        response = agents.Runner.run_sync(
-            agent, user_input, previous_response_id=previous_response_id
+    return f"Current inventory:\n{inventory_str}"
+
+
+async def main():
+    message_history = []
+    while True:
+        user_input = input("Customer: ")
+        if user_input.lower() in {"exit", "quit"}:
+            print("Exiting the conversation.")
+            break
+        response = await agent.run(
+            user_input,
+            message_history=message_history
         )
-        print(f"Agent: {response.final_output_as(str)}")
-        previous_response_id = response.last_response_id
+        print(response.output)
+        message_history += response.new_messages()
 
 
 if __name__ == "__main__":
-    main()
+    logging.basicConfig(level=logging.INFO)
+    import asyncio
+
+    asyncio.run(main())
