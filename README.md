@@ -1,3 +1,5 @@
+**Currently in the middle of refactoring from openai to pydantic-ai**
+
 # KB Agents
 
 This is a proof of concept for agents that can interact with a knowledge base using Prolog.
