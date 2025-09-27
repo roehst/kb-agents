@@ -11,5 +11,6 @@ dependencies = [
     "pydantic-ai>=1.0.8",
     "pyswip>=0.3.3",
     "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
     "python-dotenv>=1.1.1",
 ]
