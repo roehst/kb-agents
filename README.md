@@ -90,9 +90,8 @@ Translating user input to Prolog facts is done by the LLM. It would be unfeasibl
 ## Future work
 
 - Wrap it in MCP in order to serve it as an API.
-- Use the SLD+CLP(Z) solver in `solver.py`, avoiding the need to call Prolog as a subprocess.
+- Use the SLD+CLP(Z) solver in `miniprolog.py`, avoiding the need to call Prolog as a subprocess.
 - Add persistence for the Prolog knowledge base, so that the agent can remember facts across sessions.
-- Improve the agent builder in `kb_builder_agent.py` to allow for more complex goals and iterative refinement.
 
 ## Running it
 
