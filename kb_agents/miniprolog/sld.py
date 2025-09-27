@@ -25,6 +25,21 @@ def sld_resolution(
     first, *rest = goals
     solutions: list[tuple[Subst, ConstraintStore]] = []
 
+    # Handle negation as failure
+    if first.name == "\\+" and len(first.args) == 1:
+        negated_goal = first.args[0]
+        if isinstance(negated_goal, Predicate):
+            # Apply current substitution to the negated goal
+            instantiated_goal = subst.apply(negated_goal)
+            if isinstance(instantiated_goal, Predicate):
+                # Try to prove the negated goal
+                negated_solutions = sld_resolution(kb, [instantiated_goal], subst, counter, constraints)
+                # If negated goal fails (no solutions), then negation succeeds
+                if not negated_solutions:
+                    solutions.extend(sld_resolution(kb, rest, subst, counter, constraints))
+                # If negated goal succeeds, then negation fails (no solutions added)
+            return solutions
+
     # Check if the first goal is an arithmetic constraint
     constraint = predicate_to_constraint(first)
 

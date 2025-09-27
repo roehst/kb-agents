@@ -1,6 +1,5 @@
-import pytest
 from kb_agents.miniprolog.parser import parse_predicate, parse_kb, parse_query
-from kb_agents.miniprolog.syntax import Const, Predicate, Term, Var
+from kb_agents.miniprolog.syntax import Const, Predicate, Var
 
 
 class TestParsePredicateBasicCases:
@@ -41,6 +40,18 @@ class TestParsePredicateBasicCases:
         result = parse_predicate("parent(alice, X)")
         expected = Predicate("parent", [Const("alice"), Var("X")])
         assert result == expected
+    
+    def test_parse_negation_predicate(self):
+        """Test parsing a negated predicate using \\+ operator."""
+        result = parse_predicate("\\+ parent(alice, bob)")
+        expected = Predicate("\\+", [Predicate("parent", [Const("alice"), Const("bob")])])
+        assert result == expected
+    
+    def test_parse_negation_with_variables(self):
+        """Test parsing a negated predicate with variables."""
+        result = parse_predicate("\\+ parent(X, Y)")
+        expected = Predicate("\\+", [Predicate("parent", [Var("X"), Var("Y")])])
+        assert result == expected
 
 
 class TestParsePredicateEdgeCases:
@@ -73,6 +84,12 @@ class TestParsePredicateEdgeCases:
         """Test parsing whitespace-only string returns None."""
         result = parse_predicate("   ")
         assert result is None
+    
+    def test_parse_negation_with_whitespace(self):
+        """Test parsing negated predicate with whitespace."""
+        result = parse_predicate("  \\+   parent( alice , bob )  ")
+        expected = Predicate("\\+", [Predicate("parent", [Const("alice"), Const("bob")])])
+        assert result == expected
 
 
 class TestParseKnowledgeBase:

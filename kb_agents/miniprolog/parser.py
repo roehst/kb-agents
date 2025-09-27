@@ -31,6 +31,14 @@ def parse_predicate(predicate_str: str) -> Predicate | None:
     if not predicate_str:
         return None
     
+    # Check for negation operator \+
+    if predicate_str.startswith("\\+"):
+        negated_str = predicate_str[2:].strip()
+        negated_predicate = parse_predicate(negated_str)
+        if negated_predicate is None:
+            return None
+        return Predicate("\\+", [negated_predicate])
+    
     # Check if it has arguments (contains parentheses)
     if '(' not in predicate_str:
         # Simple atom predicate with no arguments
