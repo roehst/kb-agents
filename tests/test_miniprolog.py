@@ -1,11 +1,11 @@
-from kb_agents.miniprolog import KB, Const, Rule, Predicate, Var, sld_resolution, Subst
+from kb_agents.miniprolog import KB, AtomConst, NumericConst, Rule, Predicate, Var, sld_resolution, Subst
 
 
 def test_sld_resolution():
     kb = KB(
         rules=[
             Rule(
-                head=Predicate(name="parent", args=[Const(name="alice"), Const(name="bob")]),
+                head=Predicate(name="parent", args=[AtomConst(name="alice"), Const(name="bob")]),
                 body=[],
             ),
             Rule(
@@ -24,7 +24,7 @@ def test_sld_resolution():
                 ],
             ),
             Rule(
-                head=Predicate(name="age", args=[Const(name="alice"), Const(name="50")]),
+                head=Predicate(name="age", args=[AtomConst(name="alice"), Const(name="50")]),
                 body=[],
             ),
             Rule(
@@ -43,7 +43,7 @@ def test_sld_resolution():
     )
 
     query = [
-        Predicate(name="grandparent", args=[Const(name="alice"), Var(name="Y")]),
+        Predicate(name="grandparent", args=[AtomConst(name="alice"), Var(name="Y")]),
         Predicate(name="age", args=[Var(name="Y"), Var(name="Age")]),
         Predicate(name=">=", args=[Var(name="Age"), Const(name="6")]),
     ]

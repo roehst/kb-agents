@@ -1,5 +1,5 @@
 from kb_agents.miniprolog.parser import parse_predicate
-from kb_agents.miniprolog.syntax import Const, Predicate, Var
+from kb_agents.miniprolog.syntax import AtomConst, Predicate, Var
 
 
 class TestParsePredicateBasicCases:
@@ -14,13 +14,13 @@ class TestParsePredicateBasicCases:
     def test_parse_predicate_with_single_constant(self):
         """Test parsing a predicate with a single constant argument."""
         result = parse_predicate("parent(alice)")
-        expected = Predicate(name="parent", args=[Const(name="alice")])
+        expected = Predicate(name="parent", args=[AtomConst(name="alice")])
         assert result == expected
-    
+
     def test_parse_predicate_with_multiple_constants(self):
         """Test parsing a predicate with multiple constant arguments."""
         result = parse_predicate("parent(alice, bob)")
-        expected = Predicate(name="parent", args=[Const(name="alice"), Const(name="bob")])
+        expected = Predicate(name="parent", args=[AtomConst(name="alice"), AtomConst(name="bob")])
         assert result == expected
     
     def test_parse_predicate_with_single_variable(self):
@@ -38,13 +38,13 @@ class TestParsePredicateBasicCases:
     def test_parse_predicate_with_mixed_args(self):
         """Test parsing a predicate with mixed constant and variable arguments."""
         result = parse_predicate("parent(alice, X)")
-        expected = Predicate(name="parent", args=[Const(name="alice"), Var(name="X")])
+        expected = Predicate(name="parent", args=[AtomConst(name="alice"), Var(name="X")])
         assert result == expected
     
     def test_parse_negation_predicate(self):
         """Test parsing a negated predicate using \\+ operator."""
         result = parse_predicate("\\+ parent(alice, bob)")
-        expected = Predicate(name="\\+", args=[Predicate(name="parent", args=[Const(name="alice"), Const(name="bob")])])
+        expected = Predicate(name="\\+", args=[Predicate(name="parent", args=[AtomConst(name="alice"), AtomConst(name="bob")])])
         assert result == expected
     
     def test_parse_negation_with_variables(self):

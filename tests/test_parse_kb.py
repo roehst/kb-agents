@@ -1,5 +1,5 @@
 from kb_agents.miniprolog.parser import parse_kb
-from kb_agents.miniprolog.syntax import Const, Predicate, Rule
+from kb_agents.miniprolog.syntax import AtomConst, Predicate, Rule
 
 
 class TestParseKnowledgeBase:
@@ -13,8 +13,8 @@ class TestParseKnowledgeBase:
         """
         result = parse_kb(kb_str)
         expected = [
-            Rule(head=Predicate(name="parent", args=[Const(name="alice"), Const(name="bob")]), body=[]),
-            Rule(head=Predicate(name="parent", args=[Const(name="bob"), Const(name="carol")]), body=[])
+            Rule(head=Predicate(name="parent", args=[AtomConst(name="alice"), AtomConst(name="bob")]), body=[]),
+            Rule(head=Predicate(name="parent", args=[AtomConst(name="bob"), AtomConst(name="carol")]), body=[])
         ]
         assert result == expected
     
@@ -30,7 +30,7 @@ class TestParseKnowledgeBase:
         """
         result = parse_kb(kb_str)
         expected = [
-            Rule(head=Predicate(name="parent", args=[Const(name="alice"), Const(name="bob")]), body=[]),
-            Rule(head=Predicate(name="parent", args=[Const(name="bob"), Const(name="carol")]), body=[])
+            Rule(head=Predicate(name="parent", args=[AtomConst(name="alice"), AtomConst(name="bob")]), body=[]),
+            Rule(head=Predicate(name="parent", args=[AtomConst(name="bob"), AtomConst(name="carol")]), body=[])
         ]
         assert result == expected
