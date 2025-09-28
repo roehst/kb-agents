@@ -1,5 +1,4 @@
 import logging
-import sys
 
 import dotenv
 
@@ -20,7 +19,7 @@ _PROLOG_SOURCE_CODE = "carsales.pl"
 
 
 # check if it exists
-def verify_magic_constant(prolog):
+def verify_magic_constant(prolog: Prolog) -> None:
     q = list(prolog.query("magic(X)"))
     print(q)
     assert q and q[0]["X"] == "15573", "Prolog source code validation failed."
@@ -123,7 +122,7 @@ def prolog_query(ctx: RunContext, query: str) -> str:
         q = list(prolog.query(query))  # type: ignore
         if not q:
             return "No results."
-        results = []
+        results: list[str] = []
         for res in q:
             res_str = ", ".join(f"{k}={v}" for k, v in res.items())
             results.append(f"{{{res_str}}}")

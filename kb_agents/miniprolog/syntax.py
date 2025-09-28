@@ -45,7 +45,7 @@ class Predicate(Term):
     """A Prolog predicate with name and arguments."""
     type: Literal["predicate"] = "predicate"
     name: str
-    args: List[Union['Const', 'Var', 'Predicate']] = []
+    args: List[Union['Const', 'Var', 'Predicate', 'Term']] = []
 
     def is_arithmetic_constraint(self) -> bool:
         return (

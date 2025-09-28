@@ -11,12 +11,28 @@ from typing import Iterator, Dict, Any, List
 from pathlib import Path
 
 from .kb import KB
-from .syntax import Rule, Predicate, Var
+from .syntax import Const, Rule, Predicate, Term, Var
 from .parser import parse_kb, parse_rule, parse_query
 from .sld import sld_resolution
 from .subst import Subst
 from .unify import unify
 
+def collect_query_vars(predicate: Predicate) -> set[str]:
+    vars_in_query: set[str] = set()
+    
+    def collect_vars_from_term(term: Term):
+        match term:
+            case Var(name=name):
+                vars_in_query.add(name)
+            case Predicate(args=args):
+                for arg in args:
+                    collect_vars_from_term(arg)
+            case _:
+                pass
+    
+    collect_vars_from_term(predicate)
+    
+    return vars_in_query    
 
 class Miniprolog:
     """
@@ -162,6 +178,7 @@ class Miniprolog:
         
         return True
     
+    
     def query(self, query: str) -> Iterator[Dict[str, Any]]:
         """
         Query the combined knowledge base and return an iterator of variable bindings.
@@ -180,49 +197,34 @@ class Miniprolog:
         # Create combined knowledge base
         kb = self._get_combined_kb()
         
+        # Collect original query variables
+        query_var_names = collect_query_vars(query_predicate)
+        
         # Use SLD resolution to find solutions
         query_goals = [query_predicate]
         results = sld_resolution(kb, query_goals, Subst({}))
         
         # Convert results to PySwip-compatible format
         for subst, _constraint_store in results:
-            # Extract variable bindings from the original query
+            # Apply the substitution to the original query to get the ground terms
+            substituted_query = subst.apply(query_predicate)
+            
+            # Extract variable bindings by comparing original vs substituted query
             bindings = {}
             
-            # Get all variables from the original query predicate
-            def collect_query_vars(predicate):
-                vars_in_query = set()
-                def collect_vars_from_term(term):
-                    if isinstance(term, Var):
-                        vars_in_query.add(term.name)
-                    elif hasattr(term, 'args'):
-                        for arg in term.args:
-                            collect_vars_from_term(arg)
-                
-                collect_vars_from_term(predicate)
-                return vars_in_query
+            if isinstance(substituted_query, Predicate):
+                # Compare arguments to find bindings
+                for original_arg, substituted_arg in zip(query_predicate.args, substituted_query.args):
+                    if isinstance(original_arg, Var) and original_arg.name in query_var_names:
+                        # Extract the bound value
+                        if isinstance(substituted_arg, (Const, Var, Predicate)):
+                            bindings[original_arg.name] = substituted_arg.name
+                        else:
+                            bindings[original_arg.name] = str(substituted_arg)
             
-            query_var_names = collect_query_vars(query_predicate)
-            
-            # For each variable in the original query, follow the substitution chain
+            # Ensure all query variables are in bindings (even if unbound)
             for var_name in query_var_names:
-                # Find the variable object in the substitution
-                query_var = None
-                for var in subst.mapping:
-                    if isinstance(var, Var) and var.name == var_name:
-                        query_var = var
-                        break
-                
-                if query_var is not None:
-                    # Follow the substitution chain to get the final ground term
-                    final_term = subst.apply(query_var)
-                    # Convert to string representation
-                    if hasattr(final_term, 'name'):
-                        bindings[var_name] = final_term.name
-                    else:
-                        bindings[var_name] = str(final_term)
-                else:
-                    # Variable not found in substitution, might be unbound
+                if var_name not in bindings:
                     bindings[var_name] = var_name
             
             yield bindings

@@ -15,4 +15,5 @@ dependencies = [
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
     "python-dotenv>=1.1.1",
+    "ruff>=0.13.2",
 ]
