@@ -1,6 +1,12 @@
 import logging
 
 import dotenv
+from rich.console import Console
+from rich.panel import Panel
+from rich.prompt import Prompt
+from rich.text import Text
+from rich.markup import escape
+from rich.logging import RichHandler
 
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.run import AgentRunResult
@@ -15,24 +21,30 @@ from kb_agents.miniprolog import (
 
 dotenv.load_dotenv()
 
+# Initialize rich console
+console = Console()
+
 _PROLOG_SOURCE_CODE = "carsales.pl"
 
 
 # check if it exists
 def verify_magic_constant(prolog: Prolog) -> None:
     q = list(prolog.query("magic(X)"))
-    print(q)
+    console.print(f"[dim]Magic constant verification:[/dim] {q}")
     assert q and q[0]["X"] == "15573", "Prolog source code validation failed."
 
 
 try:
+    console.print("[dim]Loading Prolog knowledge base...[/dim]")
     with open(_PROLOG_SOURCE_CODE) as f:
         prolog_source_code = f.read()
     prolog = Prolog()
     prolog.consult(_PROLOG_SOURCE_CODE)
     # Validate by querying magic(15573).
     verify_magic_constant(prolog)
+    console.print("[green]✓[/green] [dim]Prolog knowledge base loaded successfully[/dim]")
 except FileNotFoundError:
+    console.print(f"[red]✗ Prolog source code file '{_PROLOG_SOURCE_CODE}' not found.[/red]")
     raise FileNotFoundError(
         f"Prolog source code file '{_PROLOG_SOURCE_CODE}' not found. Please ensure it exists in the current directory."
     )
@@ -74,12 +86,13 @@ def prolog_assertz(ctx: RunContext, fact: str) -> str:
     Assert a fact into the Prolog knowledge base.
     Example: prolog_assertz("intent(buy).")
     """
-    print(f"Asserting fact: {fact}")
+    console.print(f"[dim]Asserting fact:[/dim] [yellow]{fact}[/yellow]")
     try:
         fact = remove_ending_periods(fact)
         prolog.assertz(fact)  # type: ignore
         return f"Asserted fact: {fact}"
     except Exception as e:
+        console.print(f"[red]Error asserting fact: {e}[/red]")
         return f"Error asserting fact: {e}"
 
 
@@ -139,6 +152,7 @@ def schedule_test_drive(ctx: RunContext, car: str) -> str:
     Schedule a test drive for the given car.
     Example: schedule_test_drive("Toyota Camry")
     """
+    console.print(f"[green]📅 Scheduling test drive for {car}[/green]")
     return f"Test drive scheduled for {car}. Our agent will contact you shortly to confirm the details."
 
 
@@ -147,6 +161,7 @@ def escalate_to_human(ctx: RunContext) -> str:
     """
     Escalate the conversation to a human agent.
     """
+    console.print("[yellow]🔄 Escalating to human agent[/yellow]")
     return "The conversation has been escalated to a human agent. They will contact you shortly."
 
 
@@ -155,6 +170,7 @@ def fetch_inventory(ctx: RunContext) -> str:
     """
     Fetch the current car inventory.
     """
+    console.print("[blue]📋 Fetching current inventory[/blue]")
     cars = example_data
 
     inventory_str = "\n".join(
@@ -166,23 +182,57 @@ def fetch_inventory(ctx: RunContext) -> str:
 async def step(
     agent: Agent, message_history: list[ModelMessage]
 ) -> AgentRunResult[str]:
-    user_input = input("Customer: ")
+    user_input = Prompt.ask("[bold blue]Customer[/bold blue]", console=console)
     if user_input.lower() in {"exit", "quit"}:
-        print("Exiting the conversation.")
+        console.print("[bold red]Exiting the conversation.[/bold red]")
         raise SystemExit()
     response = await agent.run(user_input, message_history=message_history)
     return response
 
 
 async def main():
+    # Display welcome message
+    console.print(Panel.fit(
+        "[bold green]🚗 Car Sales Agent[/bold green]\n"
+        "[dim]Powered by Prolog Knowledge Base[/dim]\n\n"
+        "[italic]Type 'exit' or 'quit' to end the conversation[/italic]",
+        title="Welcome",
+        border_style="blue"
+    ))
+    
     message_history: list[ModelMessage] = []
     while True:
-        response = await step(agent, message_history)
-        message_history += response.new_messages()
+        try:
+            response = await step(agent, message_history)
+            
+            # Display agent response in a panel
+            agent_text = escape(response.output) if response.output else "[dim]No response[/dim]"
+            console.print(Panel(
+                agent_text,
+                title="[bold green]🤖 Agent[/bold green]",
+                border_style="green",
+                padding=(0, 1)
+            ))
+            
+            message_history += response.new_messages()
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Conversation interrupted by user.[/yellow]")
+            break
+        except Exception as e:
+            console.print(f"[red]Error: {e}[/red]")
+            break
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    # Configure rich logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+        handlers=[RichHandler(console=console, show_time=False, show_path=False)]
+    )
+    
     import asyncio
-
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Program terminated by user.[/yellow]")

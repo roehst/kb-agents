@@ -721,6 +721,7 @@ dependencies = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "python-dotenv" },
+    { name = "rich" },
     { name = "ruff" },
     { name = "z3-solver" },
 ]
@@ -737,6 +738,7 @@ requires-dist = [
     { name = "pytest", specifier = ">=8.4.2" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
+    { name = "rich", specifier = ">=14.1.0" },
     { name = "ruff", specifier = ">=0.13.2" },
     { name = "z3-solver", specifier = ">=4.15.3.0" },
 ]
