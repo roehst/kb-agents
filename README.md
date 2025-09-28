@@ -76,7 +76,7 @@ Translating user input to Prolog facts is done by the LLM. It would be unfeasibl
 
 ## Technical details
 
-- Prolog engine: SWI-Prolog, running as a subprocess via PySwip
+- Prolog engine: hand-rolled Prolog engine in Python, called Miniprolog (to avoid the overhead of inter-process communication and PySwip)
 - LLM: GPT-5-mini via OpenAI Agents SDK (facilitates tool execution and memory management)
 
 ## Results
@@ -116,6 +116,8 @@ for result in results:
 - I started with manual recursive descent parsing, but switched to Lark as it was easier and more robust.
 
 ## Running it
+
+(Right now, main.py is being refactored to use pydantic-ai and our miniprlog instead of OpenAI Agents SDK and PySwip, so it might be broken.)
 
 `docker build -t kb-agents .` 
 
