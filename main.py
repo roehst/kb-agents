@@ -38,8 +38,6 @@ except FileNotFoundError:
         f"Prolog source code file '{_PROLOG_SOURCE_CODE}' not found. Please ensure it exists in the current directory."
     )
 
-sys.exit(0)  # Temporary exit to avoid running the rest of the code while refactoring
-
 agent = Agent(
     model="openai:gpt-4.1",
 )
