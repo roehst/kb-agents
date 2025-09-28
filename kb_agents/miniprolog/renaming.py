@@ -28,7 +28,7 @@ def rename_rule(rule: Rule, counter: int) -> tuple[Rule, int]:
     # Collect all variable names in the rule
     var_names: set[str] = set()
     
-    def collect_vars(term: Term):
+    def collect_vars(term: Term) -> None:
         if isinstance(term, Var):
             var_names.add(term.name)
         elif isinstance(term, Predicate):

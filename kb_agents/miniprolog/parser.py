@@ -2,7 +2,7 @@
 
 from lark import Lark, Transformer
 
-from kb_agents.miniprolog.syntax import Const, Predicate, Rule, Var
+from kb_agents.miniprolog.syntax import NumericConst, AtomConst, Predicate, Rule, Var
 
 
 # Prolog grammar for Lark
@@ -140,10 +140,13 @@ class PrologTransformer(Transformer):
         return Var(name=str(items[0]))
     
     def number(self, items):
-        return Const(name=str(items[0]))
+        # Create a NumericConst for numeric values
+        value_str = str(items[0])
+        return NumericConst(name=value_str)
     
     def atom(self, items):
-        return Const(name=str(items[0]))
+        # Create an AtomConst for non-numeric atoms
+        return AtomConst(name=str(items[0]))
     
     def compound_term(self, items):
         name = items[0]

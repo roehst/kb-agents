@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 @dataclass
 class ArithmeticConstraint:
-    op: Literal["=", "!=", "<", "<=", ">", ">=", "+", "*", "-", "/", "mod"]
+    op: Literal["=", "!=", "<", "=<", "<=", ">", ">=", "\\=", "+", "*", "-", "/", "mod"]
     left: Term
     right: Term
 
@@ -28,8 +28,12 @@ class ArithmeticConstraint:
                     return abs(left_value - right_value) < 1e-6
                 case "!=":
                     return left_value != right_value
+                case "\\=":  # Prolog not-equals
+                    return left_value != right_value
                 case "<":
                     return left_value < right_value
+                case "=<":  # Prolog less-than-or-equal
+                    return left_value <= right_value
                 case "<=":
                     return left_value <= right_value
                 case ">":
@@ -52,7 +56,7 @@ class ConstraintStore:
         return all(constraint.evaluate(subst) for constraint in self.constraints)
 
 
-Op = ["=", "!=", "<", "<=", ">", ">=", "+", "*", "-", "/", "mod"]
+Op = ["=", "!=", "<", "=<", "<=", ">", ">=", "\\=", "+", "*", "-", "/", "mod"]
 
 
 def predicate_to_constraint(predicate: Predicate) -> ArithmeticConstraint | None:

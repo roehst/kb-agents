@@ -16,5 +16,5 @@ class Subst:
         else:
             return term
 
-    def extend(self, var: Var, term: Term):
+    def extend(self, var: Var, term: Term) -> None:
         self.mapping[var] = term

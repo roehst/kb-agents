@@ -11,16 +11,13 @@ magic(15573).
 :- dynamic car/4.
 % customer_available(Year, Month, Day, Hour)
 :- dynamic customer_available/4.
-% shop_available(Year, Month, Day, Hour)
 
+% Shop availability rule - open Monday to Friday, 9am to 6pm
 shop_available(Year, Month, Day, Hour) :-
     % Shop is open from 9am to 6pm
     Hour >= 9,
     Hour =< 18,
-    % Shop is open Monday to Friday
-    date_time_stamp(date(Year, Month, Day, Hour, 0, 0, 0, _, _), Timestamp),
-    stamp_date_time(Timestamp, DateTime, local),
-    DateTime = date(_, _, _, _, _, _, WeekDay, _, _),
+    weekday(Year, Month, Day, WeekDay),
     WeekDay >= 1,
     WeekDay =< 5.
 

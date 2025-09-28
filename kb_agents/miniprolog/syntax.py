@@ -1,4 +1,4 @@
-from typing import List, Union, Literal
+from typing import Union, Literal, Any
 from pydantic import BaseModel, ConfigDict
 
 
@@ -8,25 +8,62 @@ class Term(BaseModel):
 
 
 class Const(Term):
-    """A Prolog constant (atom or number)."""
+    """Base class for all Prolog constants."""
     type: Literal["const"] = "const"
     name: str
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.name)
 
     def is_numeric(self) -> bool:
-        try:
-            float(self.name)
-            return True
-        except ValueError:
-            return False
+        return False
 
     def numeric_value(self) -> float:
-        return float(self.name)
+        raise ValueError(f"Cannot convert non-numeric constant '{self.name}' to number")
 
     def __str__(self) -> str:
         return self.name
+
+
+class NumericConst(Const):
+    """A numeric constant (integer or float)."""
+    value: Union[int, float] = 0  # Default value
+    
+    def model_post_init(self, __context: Any) -> None:
+        """Initialize value from name after Pydantic validation."""
+        try:
+            if '.' in self.name:
+                self.value = float(self.name)
+            else:
+                self.value = int(self.name)
+        except ValueError:
+            raise ValueError(f"Invalid numeric constant: {self.name}")
+    
+    def is_numeric(self) -> bool:
+        return True
+    
+    def numeric_value(self) -> float:
+        return float(self.value)
+    
+    def __hash__(self) -> int:
+        return hash((self.name, self.value))
+
+
+class AtomConst(Const):
+    """An atom constant (symbol)."""
+    
+    def is_numeric(self) -> bool:
+        return False
+
+
+class StringConst(Const):
+    """A string constant."""
+    
+    def is_numeric(self) -> bool:
+        return False
+    
+    def __str__(self) -> str:
+        return f'"{self.name}"'
 
 
 class Var(Term):
@@ -34,7 +71,7 @@ class Var(Term):
     type: Literal["var"] = "var"
     name: str
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.name)
 
     def __str__(self) -> str:
@@ -45,11 +82,11 @@ class Predicate(Term):
     """A Prolog predicate with name and arguments."""
     type: Literal["predicate"] = "predicate"
     name: str
-    args: List[Union['Const', 'Var', 'Predicate', 'Term']] = []
+    args: list['Term'] = []
 
     def is_arithmetic_constraint(self) -> bool:
         return (
-            self.name in {"=", "!=", "<", "<=", ">", ">=", "+", "*", "-", "/", "mod"}
+            self.name in {"=", "!=", "<", "=<", "<=", ">", ">=", "\\=", "+", "*", "-", "/", "mod"}
             and len(self.args) == 2
         )
 
@@ -63,7 +100,7 @@ class Predicate(Term):
 class Rule(BaseModel):
     """A Prolog rule with head and body."""
     head: Predicate
-    body: List[Predicate] = []
+    body: list[Predicate] = []
 
     def __str__(self) -> str:
         if not self.body:
@@ -72,4 +109,4 @@ class Rule(BaseModel):
         return f"{self.head} :- {body_str}."
 
 
-__all__ = ["Term", "Const", "Var", "Predicate", "Rule"]
+__all__ = ["Term", "Const", "NumericConst", "AtomConst", "StringConst", "Var", "Predicate", "Rule"]

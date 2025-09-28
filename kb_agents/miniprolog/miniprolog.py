@@ -7,7 +7,8 @@ storage for program rules (loaded via consult) and dynamically asserted facts.
 """
 
 import json
-from typing import Iterator, Dict, Any, List
+from typing import Any
+from collections.abc import Iterator
 from pathlib import Path
 
 from .kb import KB
@@ -48,8 +49,8 @@ class Miniprolog:
     
     def __init__(self):
         """Initialize an empty Miniprolog instance."""
-        self.program_rules: List[Rule] = []
-        self.asserted_facts: List[Rule] = []
+        self.program_rules: list[Rule] = []
+        self.asserted_facts: list[Rule] = []
     
     def _get_combined_kb(self) -> KB:
         """Get a combined knowledge base with both program rules and asserted facts."""
@@ -179,7 +180,7 @@ class Miniprolog:
         return True
     
     
-    def query(self, query: str) -> Iterator[Dict[str, Any]]:
+    def query(self, query: str) -> Iterator[dict[str, Any]]:
         """
         Query the combined knowledge base and return an iterator of variable bindings.
         
@@ -264,7 +265,7 @@ class Miniprolog:
         if not path.exists():
             raise FileNotFoundError(f"Save file not found: {filename}")
         
-        with open(filename, 'r', encoding='utf-8') as f:
+        with open(filename, encoding='utf-8') as f:
             data = json.load(f)
         
         if program and 'program_rules' in data:

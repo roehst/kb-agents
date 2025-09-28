@@ -26,7 +26,7 @@ def verify_magic_constant(prolog: Prolog) -> None:
 
 
 try:
-    with open(_PROLOG_SOURCE_CODE, "r") as f:
+    with open(_PROLOG_SOURCE_CODE) as f:
         prolog_source_code = f.read()
     prolog = Prolog()
     prolog.consult(_PROLOG_SOURCE_CODE)

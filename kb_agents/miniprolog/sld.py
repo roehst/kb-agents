@@ -1,5 +1,6 @@
 from kb_agents.miniprolog import unify
 from kb_agents.miniprolog.arith import ConstraintStore, predicate_to_constraint
+from kb_agents.miniprolog.builtins import is_builtin, evaluate_builtin
 from kb_agents.miniprolog.kb import KB
 from kb_agents.miniprolog.renaming import rename_rule
 from kb_agents.miniprolog.subst import Subst
@@ -18,7 +19,7 @@ def sld_resolution(
 
 
 class SLDSolver:
-    def __init__(self, kb: KB):
+    def __init__(self, kb: KB) -> None:
         self.kb = kb
 
     def sld_resolution(
@@ -43,6 +44,13 @@ class SLDSolver:
         # Handle negation as failure
         if first.name == "\\+" and len(first.args) == 1:
             return self.negation_as_failure(first, rest, subst, counter, constraints)
+
+        # Handle built-in predicates
+        if is_builtin(first):
+            builtin_solutions = evaluate_builtin(first, subst)
+            for builtin_subst in builtin_solutions:
+                solutions.extend(self.sld_resolution(rest, builtin_subst, counter, constraints))
+            return solutions
 
         constraint = predicate_to_constraint(first)
 
