@@ -1,5 +1,5 @@
 from kb_agents.miniprolog.parser import parse_predicate, parse_kb, parse_query
-from kb_agents.miniprolog.syntax import Const, Predicate, Var
+from kb_agents.miniprolog.syntax import Const, Predicate, Var, Rule
 
 
 class TestParsePredicateBasicCases:
@@ -103,8 +103,8 @@ class TestParseKnowledgeBase:
         """
         result = parse_kb(kb_str)
         expected = [
-            Predicate("parent", [Const("alice"), Const("bob")]),
-            Predicate("parent", [Const("bob"), Const("carol")])
+            Rule(Predicate("parent", [Const("alice"), Const("bob")]), []),
+            Rule(Predicate("parent", [Const("bob"), Const("carol")]), [])
         ]
         assert result == expected
     
@@ -113,19 +113,17 @@ class TestParseKnowledgeBase:
         kb_str = """
         % This is a comment
         parent(alice, bob).
-        
+
         % Another comment
         parent(bob, carol).
-        
+
         """
         result = parse_kb(kb_str)
         expected = [
-            Predicate("parent", [Const("alice"), Const("bob")]),
-            Predicate("parent", [Const("bob"), Const("carol")])
+            Rule(Predicate("parent", [Const("alice"), Const("bob")]), []),
+            Rule(Predicate("parent", [Const("bob"), Const("carol")]), [])
         ]
         assert result == expected
-
-
 class TestParseQuery:
     """Test query parsing."""
     

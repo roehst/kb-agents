@@ -1,77 +1,180 @@
-# A prolog parser.
+# A prolog parser using Lark.
 
-from abc import ABC
+from lark import Lark, Transformer
 
-from kb_agents.miniprolog.syntax import Const, Predicate, Term, Var
+from kb_agents.miniprolog.syntax import Const, Predicate, Rule, Var
 
 
-def parse_kb(kb_str: str) -> list[Predicate]:
+# Prolog grammar for Lark
+prolog_grammar = r"""
+start: clause+
+
+clause: predicate "."                                    -> fact
+      | predicate ":-" predicate_list "."               -> rule
+
+predicate_list: predicate ("," predicate)*
+
+predicate: "\\+" predicate                              -> negation
+         | NAME "(" term_list ")"                       -> compound_predicate
+         | ARITH_OP "(" term_list ")"                   -> arithmetic_predicate
+         | NAME                                         -> atom_predicate
+         | term "=" term                                -> equals
+         | term "!=" term                               -> not_equals
+         | term "<" term                                -> less_than
+         | term "<=" term                               -> less_equal
+         | term ">" term                                -> greater_than
+         | term ">=" term                               -> greater_equal
+
+term_list: term ("," term)*
+
+term: VARIABLE                                          -> variable
+    | NUMBER                                            -> number
+    | NAME                                              -> atom
+
+NAME: /[a-z][a-zA-Z0-9_]*/
+VARIABLE: /[A-Z_][a-zA-Z0-9_]*/
+NUMBER: /\d+(\.\d+)?/
+ARITH_OP: "=" | "!=" | "<" | "<=" | ">" | ">="
+
+%ignore /\s+/                                          // ignore whitespace
+%ignore /%[^\n]*/                                      // ignore comments
+"""
+
+
+class PrologTransformer(Transformer):
+    """Transform the Lark parse tree into our Prolog data structures."""
+    
+    def start(self, clauses):
+        return clauses
+    
+    def fact(self, items):
+        predicate = items[0]
+        return Rule(predicate, [])
+    
+    def rule(self, items):
+        head = items[0]
+        body = items[1]
+        return Rule(head, body)
+    
+    def predicate_list(self, predicates):
+        return predicates
+    
+    def negation(self, items):
+        predicate = items[0]
+        return Predicate("\\+", [predicate])
+    
+    def compound_predicate(self, items):
+        name = items[0]
+        args = items[1] if len(items) > 1 else []
+        return Predicate(str(name), args)
+    
+    def arithmetic_predicate(self, items):
+        operator = items[0]
+        args = items[1] if len(items) > 1 else []
+        return Predicate(str(operator), args)
+    
+    def atom_predicate(self, items):
+        name = items[0]
+        return Predicate(str(name), [])
+    
+    def equals(self, items):
+        return Predicate("=", [items[0], items[1]])
+    
+    def not_equals(self, items):
+        return Predicate("!=", [items[0], items[1]])
+    
+    def less_than(self, items):
+        return Predicate("<", [items[0], items[1]])
+    
+    def less_equal(self, items):
+        return Predicate("<=", [items[0], items[1]])
+    
+    def greater_than(self, items):
+        return Predicate(">", [items[0], items[1]])
+    
+    def greater_equal(self, items):
+        return Predicate(">=", [items[0], items[1]])
+    
+    def args(self, terms):
+        return terms
+    
+    def term_list(self, terms):
+        return terms
+    
+    def predicate_term(self, items):
+        return items[0]
+    
+    def variable(self, items):
+        return Var(str(items[0]))
+    
+    def number(self, items):
+        return Const(str(items[0]))
+    
+    def atom(self, items):
+        return Const(str(items[0]))
+
+
+# Create the parser
+prolog_parser = Lark(prolog_grammar, start="start", parser="lalr", transformer=PrologTransformer())
+
+
+def parse_kb(kb_str: str) -> list[Rule]:
     """
-    Parse a Prolog knowledge base string into a list of Predicate objects.
+    Parse a Prolog knowledge base string into a list of Rule objects using Lark.
     """
-    predicates = []
-    for line in kb_str.splitlines():
-        line = line.strip()
-        if not line or line.startswith("%"):  # Skip empty lines and comments
-            continue
-        if line.endswith("."):
-            line = line[:-1].strip()
-        pred = parse_predicate(line)
-        if pred:
-            predicates.append(pred)
-    return predicates
+    try:
+        result = prolog_parser.parse(kb_str)
+        if isinstance(result, list):
+            return result
+        return []
+    except Exception as e:
+        print(f"Parse error: {e}")
+        return []
+
+
+def parse_rule(rule_str: str) -> Rule | None:
+    """
+    Parse a single Prolog rule string into a Rule object.
+    """
+    if not rule_str.strip():
+        return None
+    
+    # Add a period if not present
+    if not rule_str.strip().endswith('.'):
+        rule_str = rule_str.strip() + '.'
+    
+    try:
+        result = prolog_parser.parse(rule_str)
+        if isinstance(result, list) and len(result) > 0:
+            return result[0]
+        return None
+    except Exception as e:
+        print(f"Parse error: {e}")
+        return None
+
 
 def parse_predicate(predicate_str: str) -> Predicate | None:
     """
     Parse a Prolog predicate string into a Predicate object.
+    Uses the Lark parser for consistency.
     """
-    predicate_str = predicate_str.strip()
-    
-    # Handle empty or whitespace-only strings
-    if not predicate_str:
+    if not predicate_str.strip():
         return None
     
-    # Check for negation operator \+
-    if predicate_str.startswith("\\+"):
-        negated_str = predicate_str[2:].strip()
-        negated_predicate = parse_predicate(negated_str)
-        if negated_predicate is None:
-            return None
-        return Predicate("\\+", [negated_predicate])
+    # Create a temporary fact to parse the predicate
+    temp_rule_str = predicate_str.strip()
+    if not temp_rule_str.endswith('.'):
+        temp_rule_str += '.'
     
-    # Check if it has arguments (contains parentheses)
-    if '(' not in predicate_str:
-        # Simple atom predicate with no arguments
-        return Predicate(predicate_str, [])
-    
-    # Find the predicate name and arguments
-    paren_index = predicate_str.index('(')
-    pred_name = predicate_str[:paren_index].strip()
-    
-    # Extract arguments from parentheses
-    if not predicate_str.endswith(')'):
-        raise ValueError(f"Missing closing parenthesis in predicate: {predicate_str}")
-    
-    args_str = predicate_str[paren_index + 1:-1].strip()
-    
-    # Handle empty argument list
-    if not args_str:
-        return Predicate(pred_name, [])
-    
-    # Parse arguments
-    args = []
-    for arg in args_str.split(','):
-        arg = arg.strip()
-        if not arg:
-            continue
-            
-        # Determine if it's a variable (starts with uppercase) or constant
-        if arg[0].isupper():
-            args.append(Var(arg))
-        else:
-            args.append(Const(arg))
-    
-    return Predicate(pred_name, args)
+    try:
+        result = prolog_parser.parse(temp_rule_str)
+        if isinstance(result, list) and len(result) > 0:
+            rule = result[0]
+            if isinstance(rule, Rule):
+                return rule.head
+        return None
+    except Exception:
+        return None
 
 
 def parse_query(query_str: str) -> Predicate | None:

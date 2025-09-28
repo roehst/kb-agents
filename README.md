@@ -93,6 +93,11 @@ Translating user input to Prolog facts is done by the LLM. It would be unfeasibl
 - Use the SLD+CLP(Z) solver in `miniprolog.py`, avoiding the need to call Prolog as a subprocess.
 - Add persistence for the Prolog knowledge base, so that the agent can remember facts across sessions.
 
+## Parser
+
+- I used `lark-parser` to create a Prolog parser that can parse a subset of Prolog, including facts, rules, and queries. 
+- I started with manual recursive descent parsing, but switched to Lark as it was easier and more robust.
+
 ## Running it
 
 `docker build -t kb-agents .` 
