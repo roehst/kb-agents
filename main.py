@@ -10,10 +10,11 @@ from pydantic_ai.messages import ModelMessage
 
 from kb_agents.car import example_data
 
-dotenv.load_dotenv()
+from kb_agents.miniprolog import (
+    Miniprolog as Prolog,
+)
 
-# from pyswip import Prolog  # noqa: E402
-from kb_agents.miniprolog import Miniprolog as Prolog  # Using our miniprolog instead of PySwip
+dotenv.load_dotenv()
 
 _PROLOG_SOURCE_CODE = "carsales.pl"
 
@@ -36,7 +37,7 @@ except FileNotFoundError:
     raise FileNotFoundError(
         f"Prolog source code file '{_PROLOG_SOURCE_CODE}' not found. Please ensure it exists in the current directory."
     )
-    
+
 sys.exit(0)  # Temporary exit to avoid running the rest of the code while refactoring
 
 agent = Agent(
