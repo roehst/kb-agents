@@ -1,5 +1,5 @@
 from .kb import KB
-from .syntax import Term, Const, Var, Predicate, Rule
+from .syntax import Term, Const, AtomConst, NumericConst, StringConst, Var, Predicate, Rule
 from .subst import Subst
 from .unify import unify
 from .renaming import rename_vars
@@ -10,6 +10,9 @@ from .miniprolog import Miniprolog
 __all__ = [
     "Term",
     "Const",
+    "AtomConst",
+    "NumericConst", 
+    "StringConst",
     "Var",
     "Predicate",
     "Rule",

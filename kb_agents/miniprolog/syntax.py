@@ -1,10 +1,11 @@
-from typing import Union, Literal, Any
-from pydantic import BaseModel, ConfigDict
+from typing import Union, Literal, Any, Annotated
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Term(BaseModel):
     """Base class for all Prolog terms."""
     model_config = ConfigDict(extra='forbid')
+    type: str  # Will be overridden by subclasses
 
 
 class Const(Term):
@@ -82,7 +83,7 @@ class Predicate(Term):
     """A Prolog predicate with name and arguments."""
     type: Literal["predicate"] = "predicate"
     name: str
-    args: list['Term'] = []
+    args: list[Union['NumericConst', 'AtomConst', 'StringConst', 'Var', 'Predicate', 'Term']] = []
 
     def is_arithmetic_constraint(self) -> bool:
         return (
@@ -109,4 +110,14 @@ class Rule(BaseModel):
         return f"{self.head} :- {body_str}."
 
 
-__all__ = ["Term", "Const", "NumericConst", "AtomConst", "StringConst", "Var", "Predicate", "Rule"]
+# Discriminated union for all term types to support proper serialization
+AnyTerm = Annotated[Union[
+    NumericConst, 
+    AtomConst, 
+    StringConst,
+    Var, 
+    Predicate
+], Field(discriminator='type')]
+
+
+__all__ = ["Term", "Const", "NumericConst", "AtomConst", "StringConst", "Var", "Predicate", "Rule", "AnyTerm"]

@@ -12,11 +12,57 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from .kb import KB
-from .syntax import Const, Rule, Predicate, Term, Var
+from .syntax import Const, Rule, Predicate, Term, Var, AtomConst, NumericConst, StringConst
 from .parser import parse_kb, parse_rule, parse_query
 from .sld import sld_resolution
 from .subst import Subst
 from .unify import unify
+
+
+def deserialize_term(term_dict: dict[str, Any]) -> Term:
+    """Deserialize a term dictionary to the appropriate Term subclass."""
+    term_type = term_dict.get('type')
+    
+    if term_type == 'const':
+        # Determine the specific constant type based on the value
+        value = term_dict.get('value')
+        if isinstance(value, (int, float)):
+            return NumericConst.model_validate(term_dict)
+        elif isinstance(value, str):
+            # Check if it's a quoted string constant
+            name = term_dict.get('name', '')
+            if isinstance(name, str) and name.startswith('"') and name.endswith('"'):
+                return StringConst.model_validate(term_dict)
+            else:
+                return AtomConst.model_validate(term_dict)
+        else:
+            return AtomConst.model_validate(term_dict)
+    elif term_type == 'var':
+        return Var.model_validate(term_dict)
+    elif term_type == 'predicate':
+        # Handle predicate with recursive term deserialization
+        pred_data = term_dict.copy()
+        if 'args' in pred_data and isinstance(pred_data['args'], list):
+            pred_data['args'] = [deserialize_term(arg) for arg in pred_data['args']]
+        return Predicate.model_validate(pred_data)
+    else:
+        # Fallback to basic Term
+        return Term.model_validate(term_dict)
+
+
+def deserialize_rule(rule_dict: dict[str, Any]) -> Rule:
+    """Deserialize a rule dictionary with proper term deserialization."""
+    rule_data = rule_dict.copy()
+    
+    # Deserialize head
+    if 'head' in rule_data:
+        rule_data['head'] = deserialize_term(rule_data['head'])
+    
+    # Deserialize body predicates
+    if 'body' in rule_data and isinstance(rule_data['body'], list):
+        rule_data['body'] = [deserialize_term(pred) for pred in rule_data['body']]
+    
+    return Rule.model_validate(rule_data)
 
 def collect_query_vars(predicate: Predicate) -> set[str]:
     vars_in_query: set[str] = set()
@@ -242,12 +288,12 @@ class Miniprolog:
         data = {}
         
         if program:
-            # Convert program rules to serializable format using Pydantic
-            data['program_rules'] = [rule.model_dump() for rule in self.program_rules]
+            # Convert program rules to serializable format using Pydantic with mode='python'
+            data['program_rules'] = [rule.model_dump(mode='python') for rule in self.program_rules]
         
         if facts:
-            # Convert asserted facts to serializable format using Pydantic
-            data['asserted_facts'] = [rule.model_dump() for rule in self.asserted_facts]
+            # Convert asserted facts to serializable format using Pydantic with mode='python'
+            data['asserted_facts'] = [rule.model_dump(mode='python') for rule in self.asserted_facts]
         
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2)
@@ -269,7 +315,7 @@ class Miniprolog:
             data = json.load(f)
         
         if program and 'program_rules' in data:
-            self.program_rules = [Rule.model_validate(rule_dict) for rule_dict in data['program_rules']]
+            self.program_rules = [deserialize_rule(rule_dict) for rule_dict in data['program_rules']]
         
         if facts and 'asserted_facts' in data:
-            self.asserted_facts = [Rule.model_validate(rule_dict) for rule_dict in data['asserted_facts']]
+            self.asserted_facts = [deserialize_rule(rule_dict) for rule_dict in data['asserted_facts']]

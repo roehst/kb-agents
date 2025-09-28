@@ -5,6 +5,12 @@ from kb_agents.miniprolog.syntax import AtomConst, Predicate, Var
 class TestParsePredicateBasicCases:
     """Test basic predicate parsing cases."""
     
+    def test_parse_simple_atom_predicate2(self):
+        """Test parsing a simple atom predicate with no arguments."""
+        result = parse_predicate("likes")
+        expected = Predicate(name="likes", args=[])
+        assert result == expected
+            
     def test_parse_simple_atom_predicate(self):
         """Test parsing a simple atom predicate with no arguments."""
         result = parse_predicate("likes")

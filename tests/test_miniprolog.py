@@ -5,15 +5,15 @@ def test_sld_resolution():
     kb = KB(
         rules=[
             Rule(
-                head=Predicate(name="parent", args=[AtomConst(name="alice"), Const(name="bob")]),
+                head=Predicate(name="parent", args=[AtomConst(name="alice"), AtomConst(name="bob")]),
                 body=[],
             ),
             Rule(
-                head=Predicate(name="parent", args=[Const(name="bob"), Const(name="carol")]),
+                head=Predicate(name="parent", args=[AtomConst(name="bob"), AtomConst(name="carol")]),
                 body=[],
             ),
             Rule(
-                head=Predicate(name="parent", args=[Const(name="bob"), Const(name="ike")]),
+                head=Predicate(name="parent", args=[AtomConst(name="bob"), AtomConst(name="ike")]),
                 body=[],
             ),
             Rule(
@@ -24,19 +24,19 @@ def test_sld_resolution():
                 ],
             ),
             Rule(
-                head=Predicate(name="age", args=[AtomConst(name="alice"), Const(name="50")]),
+                head=Predicate(name="age", args=[AtomConst(name="alice"), NumericConst(name="50")]),
                 body=[],
             ),
             Rule(
-                head=Predicate(name="age", args=[Const(name="bob"), Const(name="30")]),
+                head=Predicate(name="age", args=[AtomConst(name="bob"), NumericConst(name="30")]),
                 body=[],
             ),
             Rule(
-                head=Predicate(name="age", args=[Const(name="carol"), Const(name="10")]),
+                head=Predicate(name="age", args=[AtomConst(name="carol"), NumericConst(name="10")]),
                 body=[],
             ),
             Rule(
-                head=Predicate(name="age", args=[Const(name="ike"), Const(name="5")]),
+                head=Predicate(name="age", args=[AtomConst(name="ike"), NumericConst(name="5")]),
                 body=[],
             ),
         ]
@@ -45,7 +45,7 @@ def test_sld_resolution():
     query = [
         Predicate(name="grandparent", args=[AtomConst(name="alice"), Var(name="Y")]),
         Predicate(name="age", args=[Var(name="Y"), Var(name="Age")]),
-        Predicate(name=">=", args=[Var(name="Age"), Const(name="6")]),
+        Predicate(name=">=", args=[Var(name="Age"), NumericConst(name="6")]),
     ]
     results = sld_resolution(kb, query, Subst({}))
     query_vars = {Var(name="Y")}
@@ -56,5 +56,5 @@ def test_sld_resolution():
         )
 
     assert len(results) == 1
-    assert results[0][0].apply(Var(name="Y")) == Const(name="carol")
-    assert results[0][0].apply(Var(name="Age")) == Const(name="10")
+    assert results[0][0].apply(Var(name="Y")) == AtomConst(name="carol")
+    assert results[0][0].apply(Var(name="Age")) == NumericConst(name="10")
