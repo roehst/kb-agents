@@ -1,4 +1,5 @@
 import logging
+import sys
 
 import dotenv
 
@@ -11,7 +12,8 @@ from kb_agents.car import example_data
 
 dotenv.load_dotenv()
 
-from pyswip import Prolog  # noqa: E402
+# from pyswip import Prolog  # noqa: E402
+from kb_agents.miniprolog import Miniprolog as Prolog  # Using our miniprolog instead of PySwip
 
 _PROLOG_SOURCE_CODE = "carsales.pl"
 
@@ -19,7 +21,8 @@ _PROLOG_SOURCE_CODE = "carsales.pl"
 # check if it exists
 def verify_magic_constant(prolog):
     q = list(prolog.query("magic(X)"))
-    assert q and q[0]["X"] == 15573, "Prolog source code validation failed."
+    print(q)
+    assert q and q[0]["X"] == "15573", "Prolog source code validation failed."
 
 
 try:
@@ -33,6 +36,8 @@ except FileNotFoundError:
     raise FileNotFoundError(
         f"Prolog source code file '{_PROLOG_SOURCE_CODE}' not found. Please ensure it exists in the current directory."
     )
+    
+sys.exit(0)  # Temporary exit to avoid running the rest of the code while refactoring
 
 agent = Agent(
     model="openai:gpt-4.1",

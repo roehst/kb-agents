@@ -11,6 +11,11 @@ start: clause+
 
 clause: predicate "."                                    -> fact
       | predicate ":-" predicate_list "."               -> rule
+      | ":-" directive "."                              -> pragma
+
+directive: "dynamic" NAME "/" NUMBER                    -> dynamic_directive
+         | NAME "(" term_list ")"                       -> other_directive
+         | NAME                                         -> simple_directive
 
 predicate_list: predicate ("," predicate)*
 
@@ -20,7 +25,9 @@ predicate: "\\+" predicate                              -> negation
          | NAME                                         -> atom_predicate
          | term "=" term                                -> equals
          | term "!=" term                               -> not_equals
+         | term "\\=" term                              -> not_equals_prolog
          | term "<" term                                -> less_than
+         | term "=<" term                               -> less_equal_prolog
          | term "<=" term                               -> less_equal
          | term ">" term                                -> greater_than
          | term ">=" term                               -> greater_equal
@@ -30,6 +37,8 @@ term_list: term ("," term)*
 term: VARIABLE                                          -> variable
     | NUMBER                                            -> number
     | NAME                                              -> atom
+    | NAME "(" term_list ")"                           -> compound_term
+    | "_"                                              -> anonymous_var
 
 NAME: /[a-z][a-zA-Z0-9_]*/
 VARIABLE: /[A-Z_][a-zA-Z0-9_]*/
@@ -45,7 +54,8 @@ class PrologTransformer(Transformer):
     """Transform the Lark parse tree into our Prolog data structures."""
     
     def start(self, clauses):
-        return clauses
+        # Filter out None values (ignored pragmas)
+        return [clause for clause in clauses if clause is not None]
     
     def fact(self, items):
         predicate = items[0]
@@ -55,6 +65,22 @@ class PrologTransformer(Transformer):
         head = items[0]
         body = items[1]
         return Rule(head=head, body=body)
+    
+    def pragma(self, items):
+        # Ignore pragmas by returning None
+        return None
+    
+    def dynamic_directive(self, items):
+        # Ignore dynamic directives
+        return None
+    
+    def other_directive(self, items):
+        # Ignore other directives
+        return None
+    
+    def simple_directive(self, items):
+        # Ignore simple directives
+        return None
     
     def predicate_list(self, predicates):
         return predicates
@@ -83,11 +109,17 @@ class PrologTransformer(Transformer):
     def not_equals(self, items):
         return Predicate(name="!=", args=[items[0], items[1]])
     
+    def not_equals_prolog(self, items):
+        return Predicate(name="\\=", args=[items[0], items[1]])
+    
     def less_than(self, items):
         return Predicate(name="<", args=[items[0], items[1]])
     
     def less_equal(self, items):
         return Predicate(name="<=", args=[items[0], items[1]])
+    
+    def less_equal_prolog(self, items):
+        return Predicate(name="=<", args=[items[0], items[1]])
     
     def greater_than(self, items):
         return Predicate(name=">", args=[items[0], items[1]])
@@ -112,6 +144,16 @@ class PrologTransformer(Transformer):
     
     def atom(self, items):
         return Const(name=str(items[0]))
+    
+    def compound_term(self, items):
+        name = items[0]
+        args = items[1] if len(items) > 1 else []
+        return Predicate(name=str(name), args=args)
+    
+    def anonymous_var(self, items):
+        # Anonymous variables are treated as unique variables
+        import uuid
+        return Var(name=f"_G{uuid.uuid4().hex[:8]}")
 
 
 # Create the parser

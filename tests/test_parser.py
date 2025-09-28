@@ -8,49 +8,49 @@ class TestParsePredicateBasicCases:
     def test_parse_simple_atom_predicate(self):
         """Test parsing a simple atom predicate with no arguments."""
         result = parse_predicate("likes")
-        expected = Predicate("likes", [])
+        expected = Predicate(name="likes", args=[])
         assert result == expected
     
     def test_parse_predicate_with_single_constant(self):
         """Test parsing a predicate with a single constant argument."""
         result = parse_predicate("parent(alice)")
-        expected = Predicate("parent", [Const("alice")])
+        expected = Predicate(name="parent", args=[Const(name="alice")])
         assert result == expected
     
     def test_parse_predicate_with_multiple_constants(self):
         """Test parsing a predicate with multiple constant arguments."""
         result = parse_predicate("parent(alice, bob)")
-        expected = Predicate("parent", [Const("alice"), Const("bob")])
+        expected = Predicate(name="parent", args=[Const(name="alice"), Const(name="bob")])
         assert result == expected
     
     def test_parse_predicate_with_single_variable(self):
         """Test parsing a predicate with a single variable argument."""
         result = parse_predicate("parent(X)")
-        expected = Predicate("parent", [Var("X")])
+        expected = Predicate(name="parent", args=[Var(name="X")])
         assert result == expected
     
     def test_parse_predicate_with_multiple_variables(self):
         """Test parsing a predicate with multiple variable arguments."""
         result = parse_predicate("parent(X, Y)")
-        expected = Predicate("parent", [Var("X"), Var("Y")])
+        expected = Predicate(name="parent", args=[Var(name="X"), Var(name="Y")])
         assert result == expected
     
     def test_parse_predicate_with_mixed_args(self):
         """Test parsing a predicate with mixed constant and variable arguments."""
         result = parse_predicate("parent(alice, X)")
-        expected = Predicate("parent", [Const("alice"), Var("X")])
+        expected = Predicate(name="parent", args=[Const(name="alice"), Var(name="X")])
         assert result == expected
     
     def test_parse_negation_predicate(self):
         """Test parsing a negated predicate using \\+ operator."""
         result = parse_predicate("\\+ parent(alice, bob)")
-        expected = Predicate("\\+", [Predicate("parent", [Const("alice"), Const("bob")])])
+        expected = Predicate(name="\\+", args=[Predicate(name="parent", args=[Const(name="alice"), Const(name="bob")])])
         assert result == expected
     
     def test_parse_negation_with_variables(self):
         """Test parsing a negated predicate with variables."""
         result = parse_predicate("\\+ parent(X, Y)")
-        expected = Predicate("\\+", [Predicate("parent", [Var("X"), Var("Y")])])
+        expected = Predicate(name="\\+", args=[Predicate(name="parent", args=[Var(name="X"), Var(name="Y")])])
         assert result == expected
 
 
@@ -60,19 +60,19 @@ class TestParsePredicateEdgeCases:
     def test_parse_predicate_with_whitespace(self):
         """Test parsing predicates with various whitespace."""
         result = parse_predicate("  parent( alice , bob )  ")
-        expected = Predicate("parent", [Const("alice"), Const("bob")])
+        expected = Predicate(name="parent", args=[Const(name="alice"), Const(name="bob")])
         assert result == expected
     
     def test_parse_numeric_constants(self):
         """Test parsing predicates with numeric constants."""
         result = parse_predicate("age(alice, 30)")
-        expected = Predicate("age", [Const("alice"), Const("30")])
+        expected = Predicate(name="age", args=[Const(name="alice"), Const(name="30")])
         assert result == expected
     
     def test_parse_arithmetic_predicates(self):
         """Test parsing arithmetic predicates."""
         result = parse_predicate(">(X, 5)")
-        expected = Predicate(">", [Var("X"), Const("5")])
+        expected = Predicate(name=">", args=[Var(name="X"), Const(name="5")])
         assert result == expected
     
     def test_parse_empty_string(self):
@@ -88,7 +88,7 @@ class TestParsePredicateEdgeCases:
     def test_parse_negation_with_whitespace(self):
         """Test parsing negated predicate with whitespace."""
         result = parse_predicate("  \\+   parent( alice , bob )  ")
-        expected = Predicate("\\+", [Predicate("parent", [Const("alice"), Const("bob")])])
+        expected = Predicate(name="\\+", args=[Predicate(name="parent", args=[Const(name="alice"), Const(name="bob")])])
         assert result == expected
 
 
@@ -103,8 +103,8 @@ class TestParseKnowledgeBase:
         """
         result = parse_kb(kb_str)
         expected = [
-            Rule(Predicate("parent", [Const("alice"), Const("bob")]), []),
-            Rule(Predicate("parent", [Const("bob"), Const("carol")]), [])
+            Rule(head=Predicate(name="parent", args=[Const(name="alice"), Const(name="bob")]), body=[]),
+            Rule(head=Predicate(name="parent", args=[Const(name="bob"), Const(name="carol")]), body=[])
         ]
         assert result == expected
     
@@ -120,8 +120,8 @@ class TestParseKnowledgeBase:
         """
         result = parse_kb(kb_str)
         expected = [
-            Rule(Predicate("parent", [Const("alice"), Const("bob")]), []),
-            Rule(Predicate("parent", [Const("bob"), Const("carol")]), [])
+            Rule(head=Predicate(name="parent", args=[Const(name="alice"), Const(name="bob")]), body=[]),
+            Rule(head=Predicate(name="parent", args=[Const(name="bob"), Const(name="carol")]), body=[])
         ]
         assert result == expected
 class TestParseQuery:
@@ -130,11 +130,11 @@ class TestParseQuery:
     def test_parse_simple_query(self):
         """Test parsing a simple query."""
         result = parse_query("parent(alice, X).")
-        expected = Predicate("parent", [Const("alice"), Var("X")])
+        expected = Predicate(name="parent", args=[Const(name="alice"), Var(name="X")])
         assert result == expected
     
     def test_parse_query_without_dot(self):
         """Test parsing a query without trailing dot."""
         result = parse_query("parent(alice, X)")
-        expected = Predicate("parent", [Const("alice"), Var("X")])
+        expected = Predicate(name="parent", args=[Const(name="alice"), Var(name="X")])
         assert result == expected

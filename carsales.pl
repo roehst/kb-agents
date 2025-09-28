@@ -18,7 +18,7 @@ shop_available(Year, Month, Day, Hour) :-
     Hour >= 9,
     Hour =< 18,
     % Shop is open Monday to Friday
-    date_time_stamp(date(Year, Month, Day, Hour, 0, 0, 0, -, -), Timestamp),
+    date_time_stamp(date(Year, Month, Day, Hour, 0, 0, 0, _, _), Timestamp),
     stamp_date_time(Timestamp, DateTime, local),
     DateTime = date(_, _, _, _, _, _, WeekDay, _, _),
     WeekDay >= 1,

@@ -56,7 +56,7 @@ class TestEndToEndIntegration:
         
         # Extract the grandchildren names
         from kb_agents.miniprolog.syntax import Var
-        var_x = Var("X")
+        var_x = Var(name="X")
         grandchildren = {result[0].apply(var_x) for result in results3}
         grandchildren_names = {gc.name for gc in grandchildren if hasattr(gc, 'name')}
         
@@ -124,7 +124,7 @@ class TestComplexScenarios:
         assert len(results2) >= 1, "Carol should have multiple hobbies"
         
         from kb_agents.miniprolog.syntax import Var
-        var_x = Var("X")
+        var_x = Var(name="X")
         people_with_multiple = {result[0].apply(var_x) for result in results2}
         people_names = {p.name for p in people_with_multiple if hasattr(p, 'name')}
         assert "carol" in people_names, "Carol should have multiple hobbies"

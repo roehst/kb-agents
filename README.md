@@ -117,7 +117,7 @@ for result in results:
 
 ## Running it
 
-(Right now, main.py is being refactored to use pydantic-ai and our miniprlog instead of OpenAI Agents SDK and PySwip, so it might be broken.)
+(Right now, main.py is being refactored to use pydantic-ai and our miniprolog instead of OpenAI Agents SDK and PySwip)
 
 `docker build -t kb-agents .` 
 
@@ -128,3 +128,9 @@ Then:
 `python main.py`
 
 Then, interact with the agent in the prompt.
+
+### Tests
+
+The test suite is comprehensive, covering parsing, unification, resolution, and renaming.
+
+To run it, simply `uv run pytest`.
