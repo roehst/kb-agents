@@ -5,6 +5,7 @@ from .unify import unify
 from .renaming import rename_vars
 from .sld import sld_resolution
 from .arith import ConstraintStore, predicate_to_constraint
+from .miniprolog import Miniprolog
 
 __all__ = [
     "Term",
@@ -19,4 +20,5 @@ __all__ = [
     "KB",
     "ConstraintStore",
     "predicate_to_constraint",
+    "Miniprolog",
 ]

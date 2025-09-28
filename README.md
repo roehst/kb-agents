@@ -90,8 +90,25 @@ Translating user input to Prolog facts is done by the LLM. It would be unfeasibl
 ## Future work
 
 - Wrap it in MCP in order to serve it as an API.
-- Use the SLD+CLP(Z) solver in `miniprolog.py`, avoiding the need to call Prolog as a subprocess.
 - Add persistence for the Prolog knowledge base, so that the agent can remember facts across sessions.
+
+## The Miniprolog engine
+
+- I created a simple Prolog engine in Python, called Miniprolog, to experiment with Prolog parsing and resolution.
+- It also supports arithmetic predicates like `>/2`, `=</2`, etc, and negation as failure using `\+/1`.
+- It runs in the same process as the agent, avoiding the overhead of inter-process communication and PySwip.
+- Owning the Prolog engine is safer, since our engine has no I/O capabilities, avoiding security issues.
+- The API is the same as PySwip, so it can be swapped out easily.
+
+```python
+from kb_agents.miniprolog import Miniprolog
+
+mp = Miniprolog()
+mp.consult("examples/car_sales.pl")
+results = mp.query("action(X)")
+for result in results:
+    print(result)
+```
 
 ## Parser
 

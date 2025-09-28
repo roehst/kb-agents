@@ -5,20 +5,20 @@ def rename_vars(predicate: Predicate, counter: int) -> tuple[Predicate, int]:
     new_args: list[Term] = []
     for arg in predicate.args:
         if isinstance(arg, Var):
-            new_args.append(Var(f"{arg.name}_{counter}"))
+            new_args.append(Var(name=f"{arg.name}_{counter}"))
             counter += 1
         else:
             new_args.append(arg)
-    return Predicate(predicate.name, new_args), counter
+    return Predicate(name=predicate.name, args=new_args), counter
 
 
 def rename_vars_in_term(term: Term, var_mapping: dict[str, str]) -> Term:
     """Rename variables in a term according to the mapping."""
     if isinstance(term, Var):
-        return Var(var_mapping.get(term.name, term.name))
+        return Var(name=var_mapping.get(term.name, term.name))
     elif isinstance(term, Predicate):
         new_args = [rename_vars_in_term(arg, var_mapping) for arg in term.args]
-        return Predicate(term.name, new_args)
+        return Predicate(name=term.name, args=new_args)
     else:
         return term
 
@@ -53,4 +53,4 @@ def rename_rule(rule: Rule, counter: int) -> tuple[Rule, int]:
     assert isinstance(new_head_term, Predicate), "Head should be a Predicate"
     new_body = [term for term in new_body_terms if isinstance(term, Predicate)]
     
-    return Rule(new_head_term, new_body), counter
+    return Rule(head=new_head_term, body=new_body), counter

@@ -12,7 +12,7 @@ class Subst:
         if isinstance(term, Var) and term in self.mapping:
             return self.apply(self.mapping[term])
         elif isinstance(term, Predicate):
-            return Predicate(term.name, [self.apply(arg) for arg in term.args])
+            return Predicate(name=term.name, args=[self.apply(arg) for arg in term.args])
         else:
             return term
 

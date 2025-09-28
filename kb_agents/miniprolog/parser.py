@@ -49,51 +49,51 @@ class PrologTransformer(Transformer):
     
     def fact(self, items):
         predicate = items[0]
-        return Rule(predicate, [])
+        return Rule(head=predicate, body=[])
     
     def rule(self, items):
         head = items[0]
         body = items[1]
-        return Rule(head, body)
+        return Rule(head=head, body=body)
     
     def predicate_list(self, predicates):
         return predicates
     
     def negation(self, items):
         predicate = items[0]
-        return Predicate("\\+", [predicate])
+        return Predicate(name="\\+", args=[predicate])
     
     def compound_predicate(self, items):
         name = items[0]
         args = items[1] if len(items) > 1 else []
-        return Predicate(str(name), args)
+        return Predicate(name=str(name), args=args)
     
     def arithmetic_predicate(self, items):
         operator = items[0]
         args = items[1] if len(items) > 1 else []
-        return Predicate(str(operator), args)
+        return Predicate(name=str(operator), args=args)
     
     def atom_predicate(self, items):
         name = items[0]
-        return Predicate(str(name), [])
+        return Predicate(name=str(name), args=[])
     
     def equals(self, items):
-        return Predicate("=", [items[0], items[1]])
+        return Predicate(name="=", args=[items[0], items[1]])
     
     def not_equals(self, items):
-        return Predicate("!=", [items[0], items[1]])
+        return Predicate(name="!=", args=[items[0], items[1]])
     
     def less_than(self, items):
-        return Predicate("<", [items[0], items[1]])
+        return Predicate(name="<", args=[items[0], items[1]])
     
     def less_equal(self, items):
-        return Predicate("<=", [items[0], items[1]])
+        return Predicate(name="<=", args=[items[0], items[1]])
     
     def greater_than(self, items):
-        return Predicate(">", [items[0], items[1]])
+        return Predicate(name=">", args=[items[0], items[1]])
     
     def greater_equal(self, items):
-        return Predicate(">=", [items[0], items[1]])
+        return Predicate(name=">=", args=[items[0], items[1]])
     
     def args(self, terms):
         return terms
@@ -105,13 +105,13 @@ class PrologTransformer(Transformer):
         return items[0]
     
     def variable(self, items):
-        return Var(str(items[0]))
+        return Var(name=str(items[0]))
     
     def number(self, items):
-        return Const(str(items[0]))
+        return Const(name=str(items[0]))
     
     def atom(self, items):
-        return Const(str(items[0]))
+        return Const(name=str(items[0]))
 
 
 # Create the parser
