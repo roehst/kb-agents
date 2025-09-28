@@ -3,3 +3,5 @@
 logs/*.log
 *pycache*
 .coverage
+.vscode
+lc.pl
