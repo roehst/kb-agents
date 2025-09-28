@@ -134,3 +134,32 @@ Then, interact with the agent in the prompt.
 The test suite is comprehensive, covering parsing, unification, resolution, and renaming.
 
 To run it, simply `uv run pytest`.
+
+### Test Optimization with Minitest
+
+This project includes a powerful test optimization tool called `minitest.py` that uses SAT solving to find the minimal set of tests needed to maintain full code coverage.
+
+#### What Minitest Does
+
+1. **Identifies Duplicate Tests**: Finds groups of tests with identical coverage patterns
+2. **Generates Minimal Test Set**: Uses constraint solving to find the smallest set of tests that maintains 100% coverage
+3. **Validates Coverage**: Actually runs the minimal test set and verifies coverage hasn't dropped
+4. **Provides Executable Commands**: Outputs ready-to-run pytest commands
+
+#### Usage
+
+```bash
+# First, run the full test suite to generate coverage data
+uv run pytest --cov=kb_agents --cov-report=term
+
+# Then run minitest to find the minimal set
+uv run python minitest.py
+```
+
+The tool will output a command like:
+```bash
+uv run pytest \
+  "tests/test_carsales_agent_simulation.py::test_no_test_drive_on_weekends" \
+  "tests/test_end_to_end.py::TestArithmeticAndConstraints::test_simple_arithmetic_facts" \
+  # ... (just 13 tests instead of 79!)
+```
