@@ -1,12 +1,13 @@
 import logging
 
-from collections import defaultdict
 import dotenv
 
-from openai import BaseModel
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.run import AgentRunResult
 from pydantic_ai.messages import ModelMessage
-from dataclasses import dataclass
+
+
+from kb_agents.car import example_data
 
 dotenv.load_dotenv()
 
@@ -57,6 +58,13 @@ def instructions() -> str:
     """
 
 
+def remove_ending_periods(s: str) -> str:
+    while s.endswith("."):
+        s = s[:-1]
+    return s
+
+
+# The Prolog tools are those exposed by prolog's API: assertz, retract, retractall, and query.
 @agent.tool
 def prolog_assertz(ctx: RunContext, fact: str) -> str:
     """
@@ -65,8 +73,7 @@ def prolog_assertz(ctx: RunContext, fact: str) -> str:
     """
     print(f"Asserting fact: {fact}")
     try:
-        while fact.endswith("."):
-            fact = fact[:-1]
+        fact = remove_ending_periods(fact)
         prolog.assertz(fact)  # type: ignore
         return f"Asserted fact: {fact}"
     except Exception as e:
@@ -80,15 +87,13 @@ def prolog_retract(ctx: RunContext, fact: str) -> str:
     Example: prolog_retract("intent(buy).")
     """
     try:
-        while fact.endswith("."):
-            fact = fact[:-1]
+        fact = remove_ending_periods(fact)
         prolog.retract(fact)  # type: ignore
         return f"Retracted fact: {fact}"
     except Exception as e:
         return f"Error retracting fact: {e}"
 
 
-# retractall
 @agent.tool
 def prolog_retractall(ctx: RunContext, fact: str) -> str:
     """
@@ -96,8 +101,7 @@ def prolog_retractall(ctx: RunContext, fact: str) -> str:
     Example: prolog_retractall("intent(_).")
     """
     try:
-        while fact.endswith("."):
-            fact = fact[:-1]
+        fact = remove_ending_periods(fact)
         prolog.retractall(fact)  # type: ignore
         return f"Retracted all facts matching: {fact}"
     except Exception as e:
@@ -111,8 +115,7 @@ def prolog_query(ctx: RunContext, query: str) -> str:
     Example: prolog_query("action(X).")
     """
     try:
-        while query.endswith("."):
-            query = query[:-1]
+        query = remove_ending_periods(query)
         q = list(prolog.query(query))  # type: ignore
         if not q:
             return "No results."
@@ -125,6 +128,8 @@ def prolog_query(ctx: RunContext, query: str) -> str:
         return f"Error querying Prolog: {e}"
 
 
+# Here are external tools, e.g., scheduling a test drive, escalating to a human agent, fetching inventory.
+# They must line up with solutions to the action/1 predicate in the Prolog knowledge base.
 @agent.tool
 def schedule_test_drive(ctx: RunContext, car: str) -> str:
     """
@@ -143,209 +148,11 @@ def escalate_to_human(ctx: RunContext) -> str:
 
 
 @agent.tool
-def end_conversation(ctx: RunContext) -> str:
-    """
-    End the conversation.
-    """
-    return "Thank you for your time. If you have any more questions, feel free to reach out. Goodbye!"
-
-
-class Car(BaseModel):
-    identifier: str
-    make: str
-    model: str
-    price: float
-    color: str
-    year: int
-
-
-@agent.tool
 def fetch_inventory(ctx: RunContext) -> str:
     """
     Fetch the current car inventory.
     """
-    cars = [
-        Car(
-            identifier="toy-cam-1",
-            make="Toyota",
-            model="Camry",
-            price=24000,
-            color="Blue",
-            year=2020,
-        ),
-        Car(
-            identifier="hon-acc-2",
-            make="Honda",
-            model="Accord",
-            price=26000,
-            color="Black",
-            year=2021,
-        ),
-        Car(
-            identifier="for-mus-3",
-            make="Ford",
-            model="Mustang",
-            price=30000,
-            color="Red",
-            year=2022,
-        ),
-        Car(
-            identifier="che-mal-4",
-            make="Chevrolet",
-            model="Malibu",
-            price=22000,
-            color="White",
-            year=2019,
-        ),
-        Car(
-            identifier="nis-alt-5",
-            make="Nissan",
-            model="Altima",
-            price=25000,
-            color="Gray",
-            year=2020,
-        ),
-        Car(
-            identifier="tes-mod3-6",
-            make="Tesla",
-            model="Model 3",
-            price=35000,
-            color="Silver",
-            year=2021,
-        ),
-        Car(
-            identifier="bmw-320i-7",
-            make="BMW",
-            model="320i",
-            price=40000,
-            color="Blue",
-            year=2022,
-        ),
-        Car(
-            identifier="aud-a4-8",
-            make="Audi",
-            model="A4",
-            price=42000,
-            color="Black",
-            year=2021,
-        ),
-        Car(
-            identifier="mer-c300-9",
-            make="Mercedes-Benz",
-            model="C300",
-            price=45000,
-            color="White",
-            year=2022,
-        ),
-        Car(
-            identifier="vol-s60-10",
-            make="Volvo",
-            model="S60",
-            price=38000,
-            color="Red",
-            year=2020,
-        ),
-        # Italian cars
-        Car(
-            identifier="fer-488-11",
-            make="Ferrari",
-            model="488",
-            price=250000,
-            color="Red",
-            year=2020,
-        ),
-        Car(
-            identifier="lam-hur-12",
-            make="Lamborghini",
-            model="Huracan",
-            price=300000,
-            color="Yellow",
-            year=2021,
-        ),
-        Car(
-            identifier="mas-ghibli-13",
-            make="Maserati",
-            model="Ghibli",
-            price=80000,
-            color="Blue",
-            year=2022,
-        ),
-        # Cheap cars
-        Car(
-            identifier="kia-rio-14",
-            make="Kia",
-            model="Rio",
-            price=15000,
-            color="Green",
-            year=2019,
-        ),
-        Car(
-            identifier="hyu-elantra-15",
-            make="Hyundai",
-            model="Elantra",
-            price=16000,
-            color="White",
-            year=2020,
-        ),
-        Car(
-            identifier="for-fiesta-16",
-            make="Ford",
-            model="Fiesta",
-            price=14000,
-            color="Red",
-            year=2018,
-        ),
-        Car(
-            identifier="niss-versa-17",
-            make="Nissan",
-            model="Versa",
-            price=13000,
-            color="Blue",
-            year=2019,
-        ),
-        Car(
-            identifier="che-spark-18",
-            make="Chevrolet",
-            model="Spark",
-            price=12000,
-            color="Yellow",
-            year=2018,
-        ),
-        # Old cars
-        Car(
-            identifier="toy-corolla-19",
-            make="Toyota",
-            model="Corolla",
-            price=10000,
-            color="Silver",
-            year=2015,
-        ),
-        Car(
-            identifier="hon-civic-20",
-            make="Honda",
-            model="Civic",
-            price=11000,
-            color="Black",
-            year=2016,
-        ),
-        # Collectibles
-        Car(
-            identifier="for-mustang-66",
-            make="Ford",
-            model="Mustang",
-            price=55000,
-            color="Red",
-            year=1966,
-        ),
-        Car(
-            identifier="che-corvette-59",
-            make="Chevrolet",
-            model="Corvette",
-            price=60000,
-            color="Blue",
-            year=1959,
-        ),
-    ]
+    cars = example_data
 
     inventory_str = "\n".join(
         f"{car.year} {car.color} {car.make} {car.model} - ${car.price}" for car in cars
@@ -353,18 +160,21 @@ def fetch_inventory(ctx: RunContext) -> str:
     return f"Current inventory:\n{inventory_str}"
 
 
+async def step(
+    agent: Agent, message_history: list[ModelMessage]
+) -> AgentRunResult[str]:
+    user_input = input("Customer: ")
+    if user_input.lower() in {"exit", "quit"}:
+        print("Exiting the conversation.")
+        raise SystemExit()
+    response = await agent.run(user_input, message_history=message_history)
+    return response
+
+
 async def main():
-    message_history = []
+    message_history: list[ModelMessage] = []
     while True:
-        user_input = input("Customer: ")
-        if user_input.lower() in {"exit", "quit"}:
-            print("Exiting the conversation.")
-            break
-        response = await agent.run(
-            user_input,
-            message_history=message_history
-        )
-        print(response.output)
+        response = await step(agent, message_history)
         message_history += response.new_messages()
 
 

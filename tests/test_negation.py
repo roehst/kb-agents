@@ -126,14 +126,16 @@ class TestNegationAsFailureIntegration:
             ),
         ])
         
-        # Query: \\+ grandparent(bob, carol) should succeed because grandparent(bob, carol) fails
-        query = [Predicate("\\+", [Predicate("grandparent", [Const("bob"), Const("carol")])])]
+        # Query: \\+ grandparent(carol, bob) should succeed because grandparent(carol, bob) fails
+        # (carol has no children, so can't be a grandparent)
+        query = [Predicate("\\+", [Predicate("grandparent", [Const("carol"), Const("bob")])])]
         results = sld_resolution(kb, query, Subst({}))
         
         # Should succeed
         assert len(results) == 1
         
         # Query: \\+ grandparent(alice, carol) should fail because grandparent(alice, carol) succeeds
+        # (alice -> bob -> carol, so alice is carol's grandparent)
         query = [Predicate("\\+", [Predicate("grandparent", [Const("alice"), Const("carol")])])]
         results = sld_resolution(kb, query, Subst({}))
         
